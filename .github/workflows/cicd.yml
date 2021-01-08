@@ -29,11 +29,11 @@ jobs:
     - name: Check rebar3 Version
       run: DEBUG=1 rebar3 --version
     - name: Compile
-      run: rebar3 compile
+      run: rebar3 as test compile
     - name: Xref Checks
-      run: rebar3 xref
+      run: rebar3 as test xref
     - name: Dialyzer
-      run: rebar3 dialyzer
+      run: rebar3 as test dialyzer
     - name: Run Tests
       run: rebar3 as test eunit
     - name: Test Coverage
