@@ -15,12 +15,12 @@ Include one of the following in your project's `rebar.config`:
 ``` erlang
 %% Latest Release
 {deps, [
-    {osc, {git, "https://github.com/erlsci/midilib", {tag, "0.1.0"}}}
+  {midilib, {git, "https://github.com/erlsci/midilib", {tag, "0.1.0"}}}
 ]}.
 
 %% Unstable
 {deps, [
-    {osc, {git, "https://github.com/erlsci/osc", {branch, "release/0.2.x"}}}
+  {midilib, {git, "https://github.com/erlsci/midilib", {branch, "release/0.2.x"}}}
 ]}.
 ```
 
