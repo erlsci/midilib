@@ -1,6 +1,6 @@
 {application, midilib, [
     {description, "Erlang MIDI Library"},
-    {vsn, "0.2.0-dev"},
+    {vsn, "0.2.0"},
     {registered, []},
     {applications, [
         kernel,
