@@ -34,6 +34,14 @@ of tracks that would be performed synchronously.
 Utility functions for handling note lengths, beats, quantization, and note
 names.
 
+## Testing
+
+Perform any checks / tests:
+
+``` shell
+$ rebar3 as test check
+```
+
 ## Resources
 
 * [MIDI](https://en.wikipedia.org/wiki/MIDI) on WikiPedia
