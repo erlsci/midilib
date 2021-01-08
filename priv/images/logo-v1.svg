@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100%" height="100%" viewBox="0 0 245 215" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve" xmlns:serif="http://www.serif.com/" style="fill-rule:evenodd;clip-rule:evenodd;stroke-linejoin:round;stroke-miterlimit:2;">
+    <g id="g8" transform="matrix(1,0,0,1,2,1)">
+        <path id="path10" d="M38.003,153.656C19.2,133.731 8.198,106.205 8.226,73.362C8.2,44.317 17.326,19.351 33.015,0.354L32.99,0.363L0.014,0.363L0.014,153.659L37.98,153.659L38.003,153.656L38.003,153.656Z" style="fill:rgb(169,5,51);fill-rule:nonzero;"/>
+        <path id="path12" d="M211.673,153.669C219.773,144.993 227.031,134.776 233.608,123.091L197.109,104.842C184.29,125.681 165.545,144.863 139.623,144.991C101.896,144.863 87.074,112.603 87.155,71.08L228.133,71.08C228.321,66.392 228.321,64.213 228.133,61.956C229.053,37.253 222.506,16.488 210.596,0.318L210.535,0.364L242.276,0.364L242.276,153.66L211.604,153.66L211.673,153.669L211.673,153.669Z" style="fill:rgb(169,5,51);fill-rule:nonzero;"/>
+        <path id="path14" d="M89.437,35.494C90.998,16.694 105.82,4.051 123.199,4.013C140.696,4.051 153.338,16.694 153.767,35.494L89.437,35.494Z" style="fill:rgb(169,5,51);fill-rule:nonzero;"/>
+    </g>
+    <g id="g16" transform="matrix(0.999439,0,0,0.648462,2.04493,76.6379)">
+        <g transform="matrix(0.338679,0,0,0.340719,-46.4659,88.9775)">
+            <path d="M137,96L370,96C389.6,96 401,112.9 401,133L401,362L336,362L336,163L298,163L298,362L239,362L239,163L202,163L202,362L137,362L137,96Z" style="fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(0.340719,0,0,0.340719,-47.2843,88.9775)">
+            <rect x="433" y="96" width="65" height="266"/>
+        </g>
+        <g transform="matrix(0.340719,0,0,0.340719,-47.2843,88.9775)">
+            <path d="M529,96L722,96C741.6,96 753,112.9 753,133L753,329C753,353.9 742.6,362 720,362L529,362L529,193L595,193L595,297L688,297L688,156L529,156L529,96Z" style="fill-rule:nonzero;"/>
+        </g>
+        <g transform="matrix(0.345788,0,0,0.340719,-51.2532,88.9775)">
+            <rect x="783" y="96" width="66" height="266"/>
+        </g>
+    </g>
+</svg>
