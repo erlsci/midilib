@@ -1,4 +1,4 @@
--module(mftext).
+-module(midiutil).
 -export([seq_to_text/1, seq_to_text/2, track_to_text/1, track_to_text/2, event_to_text/1, event_to_text/2]).
 -author("Jim Menard, jim@jimmenard.com").
 
