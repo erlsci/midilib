@@ -15,5 +15,6 @@
     {maintainers, ["Duncan McGreggor"]},
     {links, [
         {"Github", "https://github.com/erlsci/midilib"}
-    ]}
+    ]},
+    {exclude_files, ["priv/*"]}
 ]}.
