@@ -15,24 +15,31 @@ Include one of the following in your project's `rebar.config`:
 ``` erlang
 %% Latest Release
 {deps, [
-  {midilib, {git, "https://github.com/erlsci/midilib", {tag, "0.2.0"}}}
-]}.
-
-%% Unstable
-{deps, [
-  {midilib, {git, "https://github.com/erlsci/midilib", {branch, "release/0.3.x"}}}
+  {midilib, "0.3.0"}
 ]}.
 ```
+or
+``` erlang
+%% Development
+{deps, [
+  {midilib, {git, "https://github.com/erlsci/midilib", {branch, "release/0.4.x"}}}
+]}.
+```
+
+## `midimsg`
+
+Functions for creating MIDI messages, designed to be used with `term_to_binary/1`
+and sent to Ports-capabale servers.
 
 ## `midifile`
 
 Reads and writes type 1 MIDI files (note that type 1 files may contain any number
 of tracks that would be performed synchronously.
 
-## `midilib`
+## `midilib_util`
 
 Utility functions for handling note lengths, beats, quantization, and note
-names.
+names, and more.
 
 ## Testing
 
