@@ -34,9 +34,16 @@
     cc/2,
     reset/2
 ]).
+-export([
+    sys_ex/1
+]).
 
+%% Iterate through all the Msg (tuples with 'midi' as the first element),
+%% drop the first element, add the second to a list, and put that list into
+%% the payload.
 batch(Msgs) ->
-    {midi, {batch, Msgs}}.
+    Batch = [Payload || {midi, Payload} <- Msgs],
+    {midi, {batch, Batch}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Meta Messages %%%%%
@@ -61,10 +68,10 @@ instrument(Name) ->
 
 %% Creates the key signature meta message
 -spec keysig (integer(), boolean(), integer(), boolean()) -> tuple().
-keysig(Key, IsMajor, Num, IsFlat) ->
+keysig(Key, IsMajor, AccidentalCount, IsFlat) ->
     {midi, {keysig, [{key, Key},
                      {is_major, IsMajor},
-                     {num, Num},
+                     {num, AccidentalCount},
                      {is_flat, IsFlat}]}}.
 
 %% Creates the lyric meta message
@@ -177,3 +184,11 @@ reset(Bank, Program) ->
 cc(Controller, Value) ->
     {midi, {cc, [{controller, Controller},
                  {value, Value}]}}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% System Exclusive Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec sys_ex (binary()) -> tuple().
+sys_ex(Data) ->
+    {midi, {sys_ex, Data}}.
