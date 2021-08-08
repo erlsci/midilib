@@ -37,6 +37,22 @@
 -export([
     sys_ex/1
 ]).
+-export([
+    channel/1
+]).
+-export([
+    'sequence-number'/1,
+    'sequencer-data'/1,
+    'tempo-bpm'/1,
+    'tempo'/1,    
+    'time-sig'/4,
+    'track-sequence-name'/1,
+    'note-off'/1,
+    'note-off-velocity'/2,
+    'note-on'/2,
+    'poly-aftertouch'/2,
+    'program-change'/1
+]).
 
 %% Iterate through all the Msg (tuples with 'midi' as the first element),
 %% drop the first element, add the second to a list, and put that list into
@@ -192,3 +208,37 @@ cc(Controller, Value) ->
 -spec sys_ex (binary()) -> tuple().
 sys_ex(Data) ->
     {midi, {sys_ex, Data}}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% Non-Standard Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+channel(ChannelId) ->
+    {midi, {channel, ChannelId}}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% Aliases for LFE Users %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+'sequence-number'(X) ->
+    sequence_number(X).
+'sequencer-data'(X) ->
+    sequencer_data(X).
+'tempo-bpm'(X) ->
+    tempo_bpm(X).
+tempo(X) ->
+    tempo_bpm(X).
+'time-sig'(W, X, Y, Z) ->
+    time_sig(W, X, Y, Z).
+'track-sequence-name'(X) ->
+    track_sequence_name(X).
+'note-off'(X) ->
+    note_off(X).
+'note-off-velocity'(X, Y) ->
+    note_off_velocity(X, Y).
+'note-on'(X, Y) ->
+    note_on(X, Y).
+'poly-aftertouch'(X, Y) ->
+    poly_aftertouch(X, Y).
+'program-change'(X) ->
+    program_change(X).
