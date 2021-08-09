@@ -1,6 +1,7 @@
 -module(midimsg).
 -export([
-    batch/1
+    batch/1,
+    batch/2
 ]).
 -export([
     copyright/1,
@@ -54,12 +55,16 @@
     'program-change'/1
 ]).
 
+batch(Msgs) ->
+    batch(Msgs, uuid:get_v4_urandom()).
+
 %% Iterate through all the Msg (tuples with 'midi' as the first element),
 %% drop the first element, add the second to a list, and put that list into
 %% the payload.
-batch(Msgs) ->
+batch(Msgs, Id) ->
     Batch = [Payload || {midi, Payload} <- Msgs],
-    {midi, {batch, Batch}}.
+    {midi, {batch, [{id, Id},
+                    {messages, Batch}]}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Meta Messages %%%%%
@@ -152,7 +157,7 @@ undefined(Bytes) ->
     {midi, {undefined, Bytes}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Regular Messages %%%%%
+%%%%% Channel Messages %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec aftertouch (integer()) -> tuple().
