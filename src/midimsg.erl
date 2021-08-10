@@ -1,3 +1,14 @@
+%%%% The messages in this library were originally designed to interoperate with
+%%%% a Golang MIDI server (https://github.com/geomyidia/midiserver/) via Erlang
+%%%% Ports. The underlying MIDI library has messages defined here:
+%%%% * https://gitlab.com/gomidi/midi/-/blob/master/writer/messages.go
+%%%% and it was the function arguments defined there that shaped the messages
+%%%% in this module, with some corrections on terminology (it's "pitch" not
+%%%% "key").
+%%%%
+%%%% That being said, the message data produced by this module's functions
+%%%% should be sufficient to work with any low-level MIDI library in any
+%%%% language.
 -module(midimsg).
 -export([
     batch/1,
@@ -56,15 +67,14 @@
 ]).
 
 batch(Msgs) ->
-    batch(Msgs, uuid:get_v4_urandom()).
+    batch(Msgs, [{id, uuid:get_v4_urandom()}]).
 
 %% Iterate through all the Msg (tuples with 'midi' as the first element),
 %% drop the first element, add the second to a list, and put that list into
 %% the payload.
-batch(Msgs, Id) ->
+batch(Msgs, Metadata) ->
     Batch = [Payload || {midi, Payload} <- Msgs],
-    {midi, {batch, [{id, Id},
-                    {messages, Batch}]}}.
+    {midi, {batch, lists:append(Metadata, [{messages, Batch}])}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Meta Messages %%%%%
