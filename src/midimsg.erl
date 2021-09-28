@@ -39,11 +39,15 @@
     note_off_velocity/2,
     note_on/2,
     pitchbend/1,
-    poly_aftertouch/2,
-    program_change/1
+    poly_aftertouch/2
 ]).
 -export([
+    bank_select/3,
+    bank_select/4,
+    bank_select_msb/1,
+    bank_select_lsb/1,
     cc/2,
+    program_change/1,
     reset/2
 ]).
 -export([
@@ -52,6 +56,7 @@
 -export([
     channel/1
 ]).
+%% Aliases for LFE developers
 -export([
     'sequence-number'/1,
     'sequencer-data'/1,
@@ -63,7 +68,11 @@
     'note-off-velocity'/2,
     'note-on'/2,
     'poly-aftertouch'/2,
-    'program-change'/1
+    'program-change'/1,
+    'bank-select'/3,
+    'bank-select'/4,
+    'bank-select-msb'/1,
+    'bank-select-lsb'/1
 ]).
 
 batch(Msgs) ->
@@ -192,10 +201,6 @@ note_on(Pitch, Velocity) ->
 pitchbend(Value) ->
     {midi, {pitchbend, Value}}.
 
--spec program_change (integer()) -> tuple().
-program_change(Program) ->
-    {midi, {program_change, Program}}.
-
 -spec poly_aftertouch (integer(), integer()) -> tuple().
 poly_aftertouch(Pitch, Pressure) ->
     {midi, {poly_aftertouch, [{pitch, Pitch},
@@ -205,16 +210,40 @@ poly_aftertouch(Pitch, Pressure) ->
 %%%%% Control Messages %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Resets server to some established defaults using the giving bank and program
--spec reset (integer(), integer()) -> tuple().
-reset(Bank, Program) ->
-    {midi, {reset, [{bank, Bank},
-                    {program, Program}]}}.
+-spec bank_select (integer(), integer(), integer()) -> list().
+bank_select(MsbValue, LsbValue, ProgChValue) ->
+    batch([bank_select_msb(MsbValue),
+           bank_select_lsb(LsbValue),
+           program_change(ProgChValue)]).
+
+bank_select(MsbValue, LsbValue, ProgChValue, Metadata) ->
+    batch([bank_select_msb(MsbValue),
+           bank_select_lsb(LsbValue),
+           program_change(ProgChValue)],
+         Metadata).
+
+-spec bank_select_msb (integer()) -> tuple().
+bank_select_msb(Value) ->
+    {midi, {bank_select_msb, Value}}.
+
+-spec bank_select_lsb (integer()) -> tuple().
+bank_select_lsb(Value) ->
+    {midi, {bank_select_lsb, Value}}.
 
 -spec cc (integer(), integer()) -> tuple().
 cc(Controller, Value) ->
     {midi, {cc, [{controller, Controller},
                  {value, Value}]}}.
+
+-spec program_change (integer()) -> tuple().
+program_change(Program) ->
+    {midi, {program_change, Program}}.
+
+%% Resets server to some established defaults using the giving bank and program
+-spec reset (integer(), integer()) -> tuple().
+reset(Bank, Program) ->
+    {midi, {reset, [{bank, Bank},
+                    {program, Program}]}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% System Exclusive Messages %%%%%
@@ -257,3 +286,11 @@ tempo(X) ->
     poly_aftertouch(X, Y).
 'program-change'(X) ->
     program_change(X).
+'bank-select'(X, Y, Z) ->
+    bank_select(X, Y, Z).
+'bank-select'(W, X, Y, Z) ->
+    bank_select(W, X, Y, Z).
+'bank-select-msb'(X) ->
+    bank_select_msb(X).
+'bank-select-lsb'(X) ->
+    bank_select_lsb(X).
