@@ -15,7 +15,7 @@ Include one of the following in your project's `rebar.config`:
 ``` erlang
 %% Latest Release
 {deps, [
-  {midilib, "0.3.0"}
+  {midilib, "0.4.1"}
 ]}.
 ```
 or
