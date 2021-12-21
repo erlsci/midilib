@@ -15,14 +15,14 @@ Include one of the following in your project's `rebar.config`:
 ``` erlang
 %% Latest Release
 {deps, [
-  {midilib, "0.3.0"}
+  {midilib, "0.4.1"}
 ]}.
 ```
 or
 ``` erlang
 %% Development
 {deps, [
-  {midilib, {git, "https://github.com/erlsci/midilib", {branch, "release/0.4.x"}}}
+  {midilib, {git, "https://github.com/erlsci/midilib", {branch, "release/0.5.x"}}}
 ]}.
 ```
 
