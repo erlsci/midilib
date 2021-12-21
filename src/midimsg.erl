@@ -42,6 +42,14 @@
     poly_aftertouch/2
 ]).
 -export([
+    rt_clock/0,
+    rt_continue/0,
+    rt_reset/0,
+    rt_start/0,
+    rt_stop/0,
+    rt_tick/0
+]).
+-export([
     bank_select/3,
     bank_select/4,
     bank_select_msb/1,
@@ -72,7 +80,13 @@
     'bank-select'/3,
     'bank-select'/4,
     'bank-select-msb'/1,
-    'bank-select-lsb'/1
+    'bank-select-lsb'/1,
+    'rt-clock'/0,
+    'rt-continue'/0,
+    'rt-reset'/0,
+    'rt-start'/0,
+    'rt-stop'/0,
+    'rt-tick'/0
 ]).
 
 batch(Msgs) ->
@@ -245,6 +259,34 @@ reset(Bank, Program) ->
     {midi, {reset, [{bank, Bank},
                     {program, Program}]}}.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% Real-Time Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+-spec rt_clock () -> tuple().
+rt_clock() ->
+    {midi, {realtime, clock}}.
+
+-spec rt_continue () -> tuple().
+rt_continue() ->
+    {midi, {realtime, continue}}.
+
+-spec rt_reset () -> tuple().
+rt_reset() ->
+    {midi, {realtime, reset}}.
+
+-spec rt_start () -> tuple().
+rt_start() ->
+    {midi, {realtime, start}}.
+
+-spec rt_stop () -> tuple().
+rt_stop() ->
+    {midi, {realtime, stop}}.
+
+-spec rt_tick () -> tuple().
+rt_tick() ->
+    {midi, {realtime, tick}}.
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% System Exclusive Messages %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -294,3 +336,15 @@ tempo(X) ->
     bank_select_msb(X).
 'bank-select-lsb'(X) ->
     bank_select_lsb(X).
+'rt-clock'() ->
+    rt_clock().
+'rt-continue'() ->
+    rt_continue().
+'rt-reset'() ->
+    rt_reset().
+'rt-start'() ->
+    rt_start().
+'rt-stop'() ->
+    rt_stop().
+'rt-tick'() ->
+    rt_tick().
