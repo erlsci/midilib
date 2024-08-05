@@ -15,7 +15,7 @@ Include one of the following in your project's `rebar.config`:
 ``` erlang
 %% Latest Release
 {deps, [
-  {midilib, "0.4.1"}
+  {midilib, "0.4.2"}
 ]}.
 ```
 or
@@ -67,7 +67,7 @@ MIT License
 [github]: https://github.com/erlsci/midilib
 [gh-actions-badge]: https://github.com/erlsci/midilib/workflows/ci%2Fcd/badge.svg
 [gh-actions]: https://github.com/erlsci/midilib/actions
-[erlang-badge]: https://img.shields.io/badge/erlang-19%20to%2023-blue.svg
+[erlang-badge]: https://img.shields.io/badge/erlang-21%20to%2027-blue.svg
 [versions]: https://github.com/erlsci/osc/blob/master/.github/workflows/cicd.yml
 [github-tag]: https://github.com/erlsci/midilib/tags
 [github-tag-badge]: https://img.shields.io/github/tag/erlsci/midilib.svg
