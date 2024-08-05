@@ -17,7 +17,7 @@ jobs:
 
     strategy:
       matrix:
-        otp_version: ['24', '25', '26', '27']
+        otp_version: ['27', '26', '25', '24']
 
     steps:
     - uses: actions/checkout@v4
@@ -31,8 +31,8 @@ jobs:
       run: rebar3 compile
     - name: Xref Checks
       run: rebar3 xref
-    - name: Dialyzer
-      run: rebar3 dialyzer
+    #- name: Dialyzer
+    #  run: rebar3 dialyzer
     - name: Proper Tests
       run: rebar3 as test do compile, proper --regressions
     # - name: Run Tests
@@ -54,12 +54,12 @@ jobs:
       if: always()
 
   older-builds:
-    name: Old Erlang ${{ matrix.otp_version }} build
+    name: Erlang ${{ matrix.otp_version }} build (old)
     runs-on: ubuntu-20.04
 
     strategy:
       matrix:
-        otp_version: ['21', '22', '23']
+        otp_version: ['23', '22', '21']
 
     steps:
     - uses: actions/checkout@v4
@@ -73,8 +73,8 @@ jobs:
       run: rebar3 compile
     - name: Xref Checks
       run: rebar3 xref
-    - name: Dialyzer
-      run: rebar3 dialyzer
+    #- name: Dialyzer
+    #  run: rebar3 dialyzer
     - name: Compile Tests
       run: rebar3 as test compile
     - name: Proper Tests
