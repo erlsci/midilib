@@ -12,7 +12,6 @@
         midiutil
     ]},
     {licenses, ["MIT"]},
-    {maintainers, ["Duncan McGreggor"]},
     {links, [
         {"Github", "https://github.com/erlsci/midilib"}
     ]},
