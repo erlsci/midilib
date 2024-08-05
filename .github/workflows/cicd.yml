@@ -38,7 +38,7 @@ jobs:
     # - name: Run Tests
     #   run: rebar3 ct -c
     - name: Run Unit Tests
-      run: rebar3 as test lfe ltest -tall
+      run: rebar3 as test eunit
     # - name: Test Coverage
     #   run: rebar3 as test do proper -c, cover -v --min_coverage=0
     - name: Notify CI/CD Slack Channel
@@ -82,6 +82,6 @@ jobs:
     # - name: Run Tests
     #   run: rebar3 ct -c
     - name: Run Unit Tests
-      run: rebar3 as test lfe ltest -tall
+      run: rebar3 as test eunit
     # - name: Test Coverage
     #   run: rebar3 as test do proper -c, cover -v --min_coverage=0
