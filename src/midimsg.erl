@@ -1,14 +1,19 @@
-%%%% The messages in this library were originally designed to interoperate with
-%%%% a Golang MIDI server (https://github.com/geomyidia/midiserver/) via Erlang
-%%%% Ports. The underlying MIDI library has messages defined here:
-%%%% * https://gitlab.com/gomidi/midi/-/blob/master/writer/messages.go
+%%%% The messages created by the functions in this module were originally
+%%%% designed to interoperate with a Golang MIDI server (see 
+%%%% https://github.com/geomyidia/midiserver/) via Erlang Ports, then later
+%%%% the Erlang exec project. The underlying MIDI library has messages defined
+%%%% here:
+%%%%   * https://gitlab.com/gomidi/midi/-/blob/master/writer/messages.go
 %%%% and it was the function arguments defined there that shaped the messages
 %%%% in this module, with some corrections on terminology (it's "pitch" not
 %%%% "key").
 %%%%
-%%%% That being said, the message data produced by this module's functions
-%%%% should be sufficient to work with any low-level MIDI library in any
-%%%% language.
+%%%% Since then, the scope has increased and this module's messages have become
+%%%% the lingua franca for a collection of music projects (see
+%%%% https://github.com/ut-proj). Furthermore, this module has served as the
+%%%% source and destination for the binary encode and decode functions,
+%%%% respectively, from the new 'midibin' module, supporting raw binary MIDI
+%%%% messages.
 -module(midimsg).
 -export([
     batch/1,
