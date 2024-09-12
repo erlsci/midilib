@@ -69,6 +69,7 @@
 -export([
     channel/1
 ]).
+
 %% Aliases for LFE developers
 -export([
     'sequence-number'/1,
