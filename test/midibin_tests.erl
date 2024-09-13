@@ -73,24 +73,34 @@ poly_mode_off_test() ->
 poly_mode_on_test() ->
     true.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% System Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% System Common Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 time_code_quarter_frame_test() ->
-    true.
+    Msg1 = {midi, {time_code_quarter_frame, 3, 7}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 song_position_pointer_test() ->
-    true.
+    Msg1 = {midi, {song_position_pointer, 9000}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 song_select_test() ->
-    true.
+    Msg1 = {midi, {song_select, 6}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 tune_request_test() ->
-    true.
+    Msg1 = {midi, tune_request},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 end_of_sys_ex_test() ->
-    true.
+    Msg1 = {midi, end_of_sys_ex},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Real-Time Messages %%%%%

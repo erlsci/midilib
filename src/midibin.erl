@@ -6,7 +6,7 @@
 
 -include_lib("midilib/include/errors.hrl").
 
--define(PITCH_BEND_MASK, 127).
+-define(MLSB_MASK, 127).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Channel Voice Messages %%%%%
@@ -80,7 +80,7 @@ decode(<<1:1, 7:3, 3:4, 0:1, Value:7>>) ->
 decode(<<1:1, 7:3, 6:4>>) ->
     {midi, tune_request};
 
-decode(<<1:1, 7:3, 6:4>>) ->
+decode(<<1:1, 7:3, 7:4>>) ->
     {midi, end_of_sys_ex};
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -172,8 +172,8 @@ encode({midi, {pitch_bend, [{channel, Channel},
     <<1:1, 6:3, (Channel - 1):4, 0:1, Lsb:7, 0:1, Msb:7>>;
 encode({midi, {pitch_bend, [{channel, Channel},
                             {value, Value}]}}) ->
-    Msb = (Value band (?PITCH_BEND_MASK bsl 7)) bsr 7,
-    Lsb = Value band ?PITCH_BEND_MASK,
+    Msb = (Value band (?MLSB_MASK bsl 7)) bsr 7,
+    Lsb = Value band ?MLSB_MASK,
     encode({midi, {pitch_bend, [{channel, Channel},
                                 {msb, Msb},
                                 {lsb, Lsb}]}});
@@ -216,6 +216,36 @@ encode({midi, {poly_aftertouch, [{pitch, Pitch},
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% System Common Messages %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% time_code_quarter_frame
+
+encode({midi, {time_code_quarter_frame, MessageType, Value}}) ->
+    <<1:1, 7:3, 1:4, 0:1, MessageType:3, Value:4>>;
+
+%% song_position_pointer
+
+encode({midi, {song_position_pointer, [{msb, Msb},
+                                       {lsb, Lsb}]}}) ->
+    <<1:1, 7:3, 2:4, 0:1, Lsb:7, 0:1, Msb:7>>;
+encode({midi, {song_position_pointer, Value}}) ->
+    Msb = (Value band (?MLSB_MASK bsl 7)) bsr 7,
+    Lsb = Value band ?MLSB_MASK,
+    encode({midi, {song_position_pointer, [{msb, Msb}, {lsb, Lsb}]}});
+
+%% song_select
+
+encode({midi, {song_select, Value}}) ->
+    <<1:1, 7:3, 3:4, 0:1, Value:7>>;
+
+%% tune_request
+
+encode({midi, tune_request}) ->
+    <<1:1, 7:3, 6:4>>;
+
+%% end_of_sys_ex
+
+encode({midi, end_of_sys_ex}) ->
+    <<1:1, 7:3, 7:4>>;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Control Messages %%%%%
