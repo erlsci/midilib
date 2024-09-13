@@ -40,7 +40,7 @@
 ]).
 -export([
     aftertouch/1,
-    note_off/1,
+    note_off/1, note_off/2,
     note_off_velocity/2,
     note_on/2,
     pitchbend/1,
@@ -207,10 +207,13 @@ aftertouch(Pressure) ->
 note_off(Pitch) ->
     {midi, {note_off, Pitch}}.
 
--spec note_off_velocity (integer(), integer()) -> tuple().
-note_off_velocity(Pitch, Velocity) ->
+-spec note_off (integer(), integer()) -> tuple().
+note_off(Pitch, Velocity) ->
     {midi, {note_off, [{pitch, Pitch},
                        {velocity, Velocity}]}}.
+
+note_off_velocity(Pitch, Velocity) ->
+    note_off(Pitch, Velocity).
 
 -spec note_on (integer(), integer()) -> tuple().
 note_on(Pitch, Velocity) ->

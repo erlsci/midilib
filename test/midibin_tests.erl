@@ -23,10 +23,18 @@ note_off_test() ->
     ?assert(Result1 =:= Msg1).
 
 note_on_test() ->
-    true.
+    Msg1 = {midi, {note_on, [{channel, 11},
+                             {pitch, 60},
+                             {velocity, 32}]}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 poly_aftertouch_test() ->
-    true.
+    Msg1 = {midi, {poly_aftertouch, [{channel, 11},
+                                     {pitch, 48},
+                                     {pressure, 64}]}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 cc_test() ->
     true.
@@ -89,23 +97,43 @@ end_of_sys_ex_test() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 rt_clock_test() ->
-    true.
+    Msg1 = {midi, {realtime, clock}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 rt_start_test() ->
-    true.
+    Msg1 = {midi, {realtime, start}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 rt_continue_test() ->
-    true.
+    Msg1 = {midi, {realtime, continue}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 rt_stop_test() ->
-    true.
+    Msg1 = {midi, {realtime, stop}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
+
+rt_active_sensing_test() ->
+    Msg1 = {midi, {realtime, active_sensing}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
+
+rt_reset_test() ->
+    Msg1 = {midi, {realtime, reset}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% System Exclusive Messages %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 sys_ex_test() ->
-    true.
+    Msg1 = {midi, {sys_ex, 123}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Unexpected Messages %%%%%
@@ -114,10 +142,10 @@ sys_ex_test() ->
 non_midi_test() ->
     Msg1 = {cmd, "do a thing"}, 
     Result1 = roundtrip(Msg1),
-    ?assert({unknown, ?ERR_NON_MIDI} =:= Result1),
+    ?assert(?ERR_NON_MIDI =:= Result1),
     Msg2 = {midi, {something, {crazy, "DATA"}}},
     Result2 = roundtrip(Msg2),
-    ?assert({unknown, ?ERR_MIDI_UNSUP} =:= Result2).
+    ?assert(?ERR_MIDI_UNSUP =:= Result2).
 
 %%% Utility functions
 
