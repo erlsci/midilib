@@ -22,7 +22,7 @@ or
 ``` erlang
 %% Development
 {deps, [
-  {midilib, {git, "https://github.com/erlsci/midilib", {branch, "release/0.5.x"}}}
+  {midilib, {git, "https://github.com/erlsci/midilib", {branch, "release/0.6.x"}}}
 ]}.
 ```
 
