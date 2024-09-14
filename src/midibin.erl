@@ -137,6 +137,17 @@ decode(<<255:8>>) ->
 decode(<<1:1, 7:3, 0:4, 0:1, Data:7>>) ->
     {midi, {sys_ex, Data}};
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% DECODE: midilib Custom Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% batch
+
+decode(Batch) when is_list(Batch) ->
+    decode_batch(Batch, []);
+
+%% bank_select
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% DECODE: Unexpected Messages & Errors %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -414,19 +425,36 @@ encode({midi, {realtime, stop}}) ->
 encode({midi, {sys_ex, Data}}) ->
     <<1:1, 7:3, 0:4, 0:1, Data:7>>;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% midilib Custom Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% ENCODE: midilib Custom Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% batch
 
+encode({midi, {batch, Batch}}) ->
+    encode_batch(Batch, []);
+
 %% bank_select
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Unexpected Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% ENCODE: Unexpected Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 encode({midi, Data}) ->
     ?ERR_MIDI_UNSUP;
 encode(Msg) ->
     ?ERR_NON_MIDI.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% Support Functions %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+decode_batch([], Acc) ->
+    {midi, {batch, Acc}};
+decode_batch([Head|Tail], Acc) ->
+    decode_batch(Tail, Acc ++ [decode(Head)]).
+
+encode_batch([], Acc) ->
+    Acc;
+encode_batch([Head|Tail], Acc) ->
+    encode_batch(Tail, Acc ++ [encode(Head)]).
