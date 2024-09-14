@@ -39,12 +39,11 @@
     undefined/1
 ]).
 -export([
-    aftertouch/1,
-    note_off/1, note_off/2,
-    note_off_velocity/2,
-    note_on/2,
-    pitchbend/1,
-    poly_aftertouch/2
+    aftertouch/1, aftertouch/2,
+    note_off/1, note_off/2, note_off/3,
+    note_on/2, note_on/3,
+    pitch_bend/1, pitch_bend/2, pitch_bend/3,
+    poly_aftertouch/2, poly_aftertouch/3
 ]).
 -export([
     rt_clock/0,
@@ -55,19 +54,21 @@
     rt_tick/0
 ]).
 -export([
-    bank_select/3,
-    bank_select/4,
-    bank_select_msb/1,
-    bank_select_lsb/1,
     cc/2,
-    program_change/1,
-    reset/2
+    program_change/1, program_change/2
 ]).
 -export([
     sys_ex/1
 ]).
+
+%% DEPRECATED
 -export([
-    channel/1
+    bank_select/3,
+    bank_select/4,
+    bank_select_msb/1,
+    bank_select_lsb/1,
+    channel/1,
+    reset/2
 ]).
 
 %% Aliases for LFE developers
@@ -78,11 +79,10 @@
     'tempo'/1,    
     'time-sig'/4,
     'track-sequence-name'/1,
-    'note-off'/1,
-    'note-off-velocity'/2,
-    'note-on'/2,
-    'poly-aftertouch'/2,
-    'program-change'/1,
+    'note-off'/1, 'note-off'/2, 'note-off'/3,
+    'note-on'/2, 'note-on'/3,
+    'poly-aftertouch'/2, 'poly-aftertouch'/3,
+    'program-change'/1, 'program-change'/2,
     'bank-select'/3,
     'bank-select'/4,
     'bank-select-msb'/1,
@@ -202,56 +202,54 @@ undefined(Bytes) ->
 -spec aftertouch (integer()) -> tuple().
 aftertouch(Pressure) ->
     {midi, {aftertouch, Pressure}}.
+aftertouch(Channel, Pressure) ->
+    {midi, {aftertouch, [{channel, Channel},
+                         {pressure, Pressure}]}}.
 
 -spec note_off (integer()) -> tuple().
 note_off(Pitch) ->
     {midi, {note_off, Pitch}}.
-
 -spec note_off (integer(), integer()) -> tuple().
 note_off(Pitch, Velocity) ->
-    {midi, {note_off, [{pitch, Pitch},
+    {midi, {node_off, [{pitch, Pitch},
                        {velocity, Velocity}]}}.
-
-note_off_velocity(Pitch, Velocity) ->
-    note_off(Pitch, Velocity).
+note_off(Channel, Pitch, Velocity) -> 
+    {midi, {node_off, [{channel, Channel},
+                       {pitch, Pitch},
+                       {velocity, Velocity}]}}.
 
 -spec note_on (integer(), integer()) -> tuple().
 note_on(Pitch, Velocity) ->
     {midi, {note_on, [{pitch, Pitch},
                       {velocity, Velocity}]}}.
+note_on(Channel, Pitch, Velocity) ->
+    {midi, {note_on, [{channel, Channel},
+                      {pitch, Pitch},
+                      {velocity, Velocity}]}}.
 
--spec pitchbend (integer()) -> tuple().
-pitchbend(Value) ->
-    {midi, {pitchbend, Value}}.
+-spec pitch_bend (integer()) -> tuple().
+pitch_bend(Value) ->
+    {midi, {pitch_bend, Value}}.
+pitch_bend(Channel, Value) ->
+    {midi, {pitch_bend, [{channel, Channel},
+                         {value, Value}]}}.
+pitch_bend(Channel, Msb, Lsb) ->
+    {midi, {pitch_bend, [{channel, Channel},
+                         {msb, Msb},
+                         {lsb, Lsb}]}}.
 
 -spec poly_aftertouch (integer(), integer()) -> tuple().
 poly_aftertouch(Pitch, Pressure) ->
     {midi, {poly_aftertouch, [{pitch, Pitch},
                               {pressure, Pressure}]}}.
+poly_aftertouch(Channel, Pitch, Pressure) ->
+    {midi, {poly_aftertouch, [{channel, Channel},
+                              {pitch, Pitch},
+                              {pressure, Pressure}]}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Control Messages %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
--spec bank_select (integer(), integer(), integer()) -> list().
-bank_select(MsbValue, LsbValue, ProgChValue) ->
-    batch([bank_select_msb(MsbValue),
-           bank_select_lsb(LsbValue),
-           program_change(ProgChValue)]).
-
-bank_select(MsbValue, LsbValue, ProgChValue, Metadata) ->
-    batch([bank_select_msb(MsbValue),
-           bank_select_lsb(LsbValue),
-           program_change(ProgChValue)],
-         Metadata).
-
--spec bank_select_msb (integer()) -> tuple().
-bank_select_msb(Value) ->
-    {midi, {bank_select_msb, Value}}.
-
--spec bank_select_lsb (integer()) -> tuple().
-bank_select_lsb(Value) ->
-    {midi, {bank_select_lsb, Value}}.
 
 -spec cc (integer(), integer()) -> tuple().
 cc(Controller, Value) ->
@@ -262,11 +260,9 @@ cc(Controller, Value) ->
 program_change(Program) ->
     {midi, {program_change, Program}}.
 
-%% Resets server to some established defaults using the giving bank and program
--spec reset (integer(), integer()) -> tuple().
-reset(Bank, Program) ->
-    {midi, {reset, [{bank, Bank},
-                    {program, Program}]}}.
+program_change(Channel, Program) ->
+    {midi, {program_change, [{channel, Channel},
+                             {program, Program}]}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Real-Time Messages %%%%%
@@ -305,13 +301,6 @@ sys_ex(Data) ->
     {midi, {sys_ex, Data}}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Non-Standard Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-channel(ChannelId) ->
-    {midi, {channel, ChannelId}}.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Aliases for LFE Users %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -329,22 +318,22 @@ tempo(X) ->
     track_sequence_name(X).
 'note-off'(X) ->
     note_off(X).
-'note-off-velocity'(X, Y) ->
-    note_off_velocity(X, Y).
+'note-off'(X, Y) ->
+    note_off(X, Y).
+'note-off'(X, Y, Z) ->
+    note_off(X, Y, Z).
 'note-on'(X, Y) ->
     note_on(X, Y).
+'note-on'(X, Y, Z) ->
+    note_on(X, Y, Z).
 'poly-aftertouch'(X, Y) ->
     poly_aftertouch(X, Y).
+'poly-aftertouch'(X, Y, Z) ->
+    poly_aftertouch(X, Y, Z).
 'program-change'(X) ->
     program_change(X).
-'bank-select'(X, Y, Z) ->
-    bank_select(X, Y, Z).
-'bank-select'(W, X, Y, Z) ->
-    bank_select(W, X, Y, Z).
-'bank-select-msb'(X) ->
-    bank_select_msb(X).
-'bank-select-lsb'(X) ->
-    bank_select_lsb(X).
+'program-change'(X, Y) ->
+    program_change(X, Y).
 'rt-clock'() ->
     rt_clock().
 'rt-continue'() ->
@@ -357,3 +346,45 @@ tempo(X) ->
     rt_stop().
 'rt-tick'() ->
     rt_tick().
+
+%%%%%%%%%%%%%%%%%%%%%%
+%%%%% Deprecated %%%%%
+%%%%%%%%%%%%%%%%%%%%%%
+
+-spec bank_select (integer(), integer(), integer()) -> list().
+bank_select(MsbValue, LsbValue, ProgChValue) ->
+    batch([bank_select_msb(MsbValue),
+           bank_select_lsb(LsbValue),
+           program_change(ProgChValue)]).
+
+bank_select(MsbValue, LsbValue, ProgChValue, Metadata) ->
+    batch([bank_select_msb(MsbValue),
+           bank_select_lsb(LsbValue),
+           program_change(ProgChValue)],
+         Metadata).
+
+-spec bank_select_msb (integer()) -> tuple().
+bank_select_msb(Value) ->
+    {midi, {bank_select_msb, Value}}.
+
+-spec bank_select_lsb (integer()) -> tuple().
+bank_select_lsb(Value) ->
+    {midi, {bank_select_lsb, Value}}.
+
+channel(ChannelId) ->
+    {midi, {channel, ChannelId}}.
+
+%% Resets server to some established defaults using the given bank and program
+-spec reset (integer(), integer()) -> tuple().
+reset(Bank, Program) ->
+    {midi, {reset, [{bank, Bank},
+                    {program, Program}]}}.
+
+'bank-select'(X, Y, Z) ->
+    bank_select(X, Y, Z).
+'bank-select'(W, X, Y, Z) ->
+    bank_select(W, X, Y, Z).
+'bank-select-msb'(X) ->
+    bank_select_msb(X).
+'bank-select-lsb'(X) ->
+    bank_select_lsb(X).
