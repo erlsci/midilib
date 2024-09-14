@@ -73,7 +73,7 @@ decode(<<1:1, 3:3, Channel:4, 0:1, 125:7, 0:1, 0:7>>) ->
 
 %%decode(<<1:1, 3:3, Channel:4, 0:1, 126:7, 0:1, 0:7>>) ->
 %%    {midi, mono_mode_on};
-decode(<<1:1, 3:3, Channel:4, 0:1, 126:7, 0:1, _:7>>) ->
+decode(<<1:1, 3:3, _:4, 0:1, 126:7, 0:1, _:7>>) ->
     ?ERR_NOT_IMPL;
 
 decode(<<1:1, 3:3, Channel:4, 0:1, 127:7, 0:1, 0:7>>) ->
@@ -318,7 +318,7 @@ encode({midi, omni_mode_on}) ->
 
 %% mono_mode_on
 
-encode({midi, {mode, [{channel, Channel},
+encode({midi, {mode, [{channel, _},
                       {control, mono_mode_on}]}}) ->
     %%<<1:1, 3:3, Channel:4, 0:1, 126:7, 0:1, 0:7>>;
     ?ERR_NOT_IMPL;
@@ -425,9 +425,9 @@ encode({midi, {batch, Batch}}) ->
 %%%%% ENCODE: Unexpected Messages %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-encode({midi, Data}) ->
+encode({midi, _}) ->
     ?ERR_MIDI_UNSUP;
-encode(Msg) ->
+encode(_) ->
     ?ERR_NON_MIDI.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
