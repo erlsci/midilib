@@ -226,6 +226,22 @@ sys_ex_test() ->
     Result1 = roundtrip(Msg1),
     ?assert(Result1 =:= Msg1).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% midilib Custom Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+batch_test() ->
+    Msg1 = {midi, {batch, []}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1),
+    Msg2 = {midi, {batch, [{midi, {realtime, clock}},
+                           {midi, {realtime, start}},
+                           {midi, {realtime, stop}},
+                           {midi, {realtime, continue}}
+                          ]}},
+    Result2 = roundtrip(Msg2),
+    ?assert(Result2 =:= Msg2).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Unexpected Messages %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
