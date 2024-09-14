@@ -15,7 +15,7 @@ Include one of the following in your project's `rebar.config`:
 ``` erlang
 %% Latest Release
 {deps, [
-  {midilib, "0.4.2"}
+  {midilib, "0.5.0"}
 ]}.
 ```
 or
@@ -26,17 +26,20 @@ or
 ]}.
 ```
 
+## `midibin`
+
+Support for the decoding and encoding of device-ready binary MIDI messages. Note that Erlang term messages (which are encoded to binary, and which are created when decoding binary) are of the same form as those in the `midimsg` module.
+
 ## `midimsg`
 
-Functions for creating MIDI messages, designed to be used with `term_to_binary/1`
-and sent to Ports-capabale servers.
+Functions for creating Erlang term versions of MIDI messages. All messages are wrapped in a `{midi, ...}` tuple to support parallel use in multi-purpose genservers, avoiding tuple collisions.
 
 ## `midifile`
 
 Reads and writes type 1 MIDI files (note that type 1 files may contain any number
 of tracks that would be performed synchronously.
 
-## `midilib_util`
+## `midiutil`
 
 Utility functions for handling note lengths, beats, quantization, and note
 names, and more.
