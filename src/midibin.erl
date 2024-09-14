@@ -184,7 +184,7 @@ encode({midi, {note_off, [{pitch, Pitch},
                               {velocity, Velocity}]}});
 encode({midi, {note_off, Pitch}}) ->
     encode({midi, {note_off, [{pitch, Pitch},
-                              {velocity, 127}]}});
+                              {velocity, 64}]}});
 
 %% Note on
 
@@ -385,21 +385,6 @@ encode({midi, tune_request}) ->
 
 encode({midi, end_of_sys_ex}) ->
     <<1:1, 7:3, 7:4>>;
-
-%%%%%%%%%%%%%%%
-%%%%% TBD %%%%%
-%%%%%%%%%%%%%%%
-
-encode({midi, {bank_select_msb, Value}}) ->
-    ?ERR_NOT_IMPL;
-encode({midi, {bank_select_lsb, Value}}) ->
-    ?ERR_NOT_IMPL;
-encode({midi, {cc, [{controller, Controller},
-                    {value, Value}]}}) ->
-    ?ERR_NOT_IMPL;
-encode({midi, {reset, [{bank, Bank},
-                       {program, Program}]}}) ->
-    ?ERR_NOT_IMPL;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% ENCODE: Real-Time Messages %%%%%
