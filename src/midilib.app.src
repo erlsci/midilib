@@ -7,8 +7,10 @@
         stdlib
     ]},
     {modules, [
+        midibin,
         midifile,
         midilib,
+        midimsg,
         midiutil
     ]},
     {licenses, ["MIT"]},
