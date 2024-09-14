@@ -8,9 +8,9 @@
 
 -define(MLSB_MASK, 127).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Channel Voice Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% DECODE: Channel Voice Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 decode(<<1:1, 0:3, Channel:4, 0:1, Pitch:7, 0:1, Velocity:7>>) ->
     {midi, {note_off, [{channel, Channel + 1},
@@ -27,11 +27,6 @@ decode(<<1:1, 2:3, Channel:4, 0:1, Pitch:7, 0:1, Pressure:7>>) ->
                               {pitch, Pitch},
                               {pressure, Pressure}]}};
 
-decode(<<1:1, 3:3, Channel:4, 0:1, Pitch:7, 0:1, Value:7>>) ->
-    {midi, {cc, [{channel, Channel + 1},
-                 {pitch, Pitch},
-                 {value, Value}]}};
-
 decode(<<1:1, 4:3, Channel:4, 0:1, Program:7>>) ->
     {midi, {program_change, [{channel, Channel + 1},
                              {program, Program}]}};
@@ -44,29 +39,59 @@ decode(<<1:1, 6:3, Channel:4, 0:1, Lsb:7, 0:1, Msb:7>>) ->
     {midi, {pitch_bend, [{channel, Channel + 1},
                          {value, (Msb bsl 7) + Lsb}]}};
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Channel Mode Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% DECODE: Channel Mode Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% All sound off
+decode(<<1:1, 3:3, Channel:4, 0:1, 120:7, 0:1, 0:7>>) ->
+    {midi, {mode, [{channel, Channel + 1},
+                   {control, all_sound_off}]}};
 
-%% Reset all controllers
+decode(<<1:1, 3:3, Channel:4, 0:1, 121:7, 0:1, 0:7>>) ->
+    {midi, {mode, [{channel, Channel + 1},
+                   {control, reset_all}]}};
 
-%% Local controll
+decode(<<1:1, 3:3, Channel:4, 0:1, 122:7, 0:1, 0:7>>) ->
+    {midi, {mode, [{channel, Channel + 1},
+                   {control, local_control_off}]}};
 
-%% All notes off
+decode(<<1:1, 3:3, Channel:4, 0:1, 122:7, 0:1, 127:7>>) ->
+    {midi, {mode, [{channel, Channel + 1},
+                   {control, local_control_on}]}};
 
-%% Omni mode off
+decode(<<1:1, 3:3, Channel:4, 0:1, 123:7, 0:1, 0:7>>) ->
+    {midi, {mode, [{channel, Channel + 1},
+                   {control, all_notes_off}]}};
 
-%% Omni mode on
+decode(<<1:1, 3:3, Channel:4, 0:1, 124:7, 0:1, 0:7>>) ->
+    {midi, {mode, [{channel, Channel + 1},
+                   {control, omni_mode_off}]}};
 
-%% Poly mode off / Mono mode on
+decode(<<1:1, 3:3, Channel:4, 0:1, 125:7, 0:1, 0:7>>) ->
+    {midi, {mode, [{channel, Channel + 1},
+                   {control, omni_mode_on}]}};
 
-%% Poly mode on / Mono mode off
+%%decode(<<1:1, 3:3, Channel:4, 0:1, 126:7, 0:1, 0:7>>) ->
+%%    {midi, mono_mode_on};
+decode(<<1:1, 3:3, Channel:4, 0:1, 126:7, 0:1, _:7>>) ->
+    ?ERR_NOT_IMPL;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% System Common Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+decode(<<1:1, 3:3, Channel:4, 0:1, 127:7, 0:1, 0:7>>) ->
+    {midi, {mode, [{channel, Channel + 1},
+                   {control, poly_mode_on}]}};
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% DECODE: Control Change Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+decode(<<1:1, 3:3, Channel:4, 0:1, Control:7, 0:1, Value:7>>) ->
+    {midi, {cc, [{channel, Channel + 1},
+                 {control, Control},
+                 {value, Value}]}};
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% DECODE: System Common Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 decode(<<1:1, 7:3, 1:4, 0:1, MessageType:3, Value:4>>) ->
     {midi, {time_code_quarter_frame, MessageType, Value}};
@@ -83,9 +108,9 @@ decode(<<1:1, 7:3, 6:4>>) ->
 decode(<<1:1, 7:3, 7:4>>) ->
     {midi, end_of_sys_ex};
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Real-Time Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% DECODE: Real-Time Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 decode(<<248:8>>) ->
     {midi, {realtime, clock}};
@@ -105,16 +130,16 @@ decode(<<254:8>>) ->
 decode(<<255:8>>) ->
     {midi, {realtime, reset}};
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% System Exclusive Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% DECODE: System Exclusive Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 decode(<<1:1, 7:3, 0:4, 0:1, Data:7>>) ->
     {midi, {sys_ex, Data}};
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Unexpected Messages & Errors %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% DECODE: Unexpected Messages & Errors %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 decode({error, _}=Error) ->
     Error;
@@ -122,9 +147,9 @@ decode({error, _}=Error) ->
 decode(Bin) ->
     {unknown, Bin}.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Channel Voice Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% ENCODE: Channel Voice Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Aftertouch
 
@@ -193,29 +218,123 @@ encode({midi, {poly_aftertouch, [{pitch, Pitch},
                                      {pitch, Pitch},
                                      {pressure, Pressure}]}});
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Channel Mode Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Program change
 
-%% All sound off
+encode({midi, {program_change, [{channel, Channel},
+                                {program, Program}]}}) ->
+    <<1:1, 4:3, (Channel - 1):4, 0:1, Program:7>>;
+encode({midi, {program_change, [{program, Program}]}}) ->
+    encode({midi, {program_change, [{channel, 1},
+                                    {program, Program}]}});
 
-%% Reset all controllers
+encode({midi, {program_change, Program}}) ->
+    encode({midi, {program_change, [{program, Program}]}});
 
-%% Local controll
 
-%% All notes off
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% ENCODE: Channel Mode Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% Omni mode off
+%% all_sound_off
 
-%% Omni mode on
+encode({midi, {mode, [{channel, Channel},
+                      {control, all_sound_off}]}}) ->
+    <<1:1, 3:3, (Channel - 1):4, 0:1, 120:7, 0:1, 0:7>>;
 
-%% Poly mode off / Mono mode on
+encode({midi, all_sound_off}) ->
+    encode({midi, {mode, [{channel, 1},
+                          {control, all_sound_off}]}});
 
-%% Poly mode on / Mono mode off
+%% reset_all
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% System Common Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+encode({midi, {mode, [{channel, Channel},
+                      {control, reset_all}]}}) ->
+    <<1:1, 3:3, (Channel - 1):4, 0:1, 121:7, 0:1, 0:7>>;
+
+encode({midi, reset_all}) ->
+    encode({midi, {mode, [{channel, 1},
+                          {control, reset_all}]}});
+
+%% local_control_off
+
+encode({midi, {mode, [{channel, Channel},
+                      {control, local_control_off}]}}) ->
+    <<1:1, 3:3, (Channel - 1):4, 0:1, 122:7, 0:1, 0:7>>;
+
+encode({midi, local_control_off}) ->
+    encode({midi, {mode, [{channel, 1},
+                          {control, local_control_off}]}});
+
+%% local_control_on
+
+encode({midi, {mode, [{channel, Channel},
+                      {control, local_control_on}]}}) ->
+    <<1:1, 3:3, (Channel - 1):4, 0:1, 122:7, 0:1, 127:7>>;
+
+encode({midi, local_control_on}) ->
+    encode({midi, {mode, [{channel, 1},
+                          {control, local_control_on}]}});
+
+%% all_notes_off
+
+encode({midi, {mode, [{channel, Channel},
+                      {control, all_notes_off}]}}) ->
+    <<1:1, 3:3, (Channel - 1):4, 0:1, 123:7, 0:1, 0:7>>;
+
+encode({midi, all_notes_off}) ->
+    encode({midi, {mode, [{channel, 1},
+                          {control, all_notes_off}]}});
+
+%% omni_mode_off
+
+encode({midi, {mode, [{channel, Channel},
+                      {control, omni_mode_off}]}}) ->
+    <<1:1, 3:3, (Channel - 1):4, 0:1, 124:7, 0:1, 0:7>>;
+
+encode({midi, omni_mode_off}) ->
+    encode({midi, {mode, [{channel, 1},
+                          {control, omni_mode_off}]}});
+
+%% all_notes_on
+
+encode({midi, {mode, [{channel, Channel},
+                      {control, omni_mode_on}]}}) ->
+    <<1:1, 3:3, (Channel - 1):4, 0:1, 125:7, 0:1, 0:7>>;
+
+encode({midi, omni_mode_on}) ->
+    encode({midi, {mode, [{channel, 1},
+                          {control, omni_mode_on}]}});
+
+%% mono_mode_on
+
+encode({midi, {mode, [{channel, Channel},
+                      {control, mono_mode_on}]}}) ->
+    %%<<1:1, 3:3, Channel:4, 0:1, 126:7, 0:1, 0:7>>;
+    ?ERR_NOT_IMPL;
+
+encode({midi, mono_mode_on}) ->
+    encode({midi, {mode, [{channel, 1},
+                          {control, mono_mode_on}]}});
+
+%% poly_mode_on
+
+encode({midi, {mode, [{channel, Channel},
+                      {control, poly_mode_on}]}}) ->
+    <<1:1, 3:3, (Channel - 1):4, 0:1, 127:7, 0:1, 0:7>>;
+
+encode({midi, poly_mode_on}) ->
+    encode({midi, {mode, [{channel, 1},
+                          {control, poly_mode_on}]}});
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% ENCODE: Control Change Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% cc
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% ENCODE: System Common Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% time_code_quarter_frame
 
@@ -247,9 +366,9 @@ encode({midi, tune_request}) ->
 encode({midi, end_of_sys_ex}) ->
     <<1:1, 7:3, 7:4>>;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Control Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%
+%%%%% TBD %%%%%
+%%%%%%%%%%%%%%%
 
 encode({midi, {bank_select_msb, Value}}) ->
     ?ERR_NOT_IMPL;
@@ -258,20 +377,13 @@ encode({midi, {bank_select_lsb, Value}}) ->
 encode({midi, {cc, [{controller, Controller},
                     {value, Value}]}}) ->
     ?ERR_NOT_IMPL;
-encode({midi, {program_change, Program}}) ->
-    ?ERR_NOT_IMPL;
-encode({midi, {program_change, [{program, Program}]}}) ->
-    ?ERR_NOT_IMPL;
-encode({midi, {program_change, [{channel, Channel},
-                                {program, Program}]}}) ->
-    ?ERR_NOT_IMPL;
 encode({midi, {reset, [{bank, Bank},
                        {program, Program}]}}) ->
     ?ERR_NOT_IMPL;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% Real-Time Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% ENCODE: Real-Time Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 encode({midi, {realtime, active_sensing}}) ->
     <<254:8>>;
@@ -286,12 +398,20 @@ encode({midi, {realtime, start}}) ->
 encode({midi, {realtime, stop}}) ->
     <<252:8>>;
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%% System Exclusive Messages %%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% ENCODE: System Exclusive Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 encode({midi, {sys_ex, Data}}) ->
     <<1:1, 7:3, 0:4, 0:1, Data:7>>;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% midilib Custom Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%% batch
+
+%% bank_select
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Unexpected Messages %%%%%

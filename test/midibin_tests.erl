@@ -36,11 +36,11 @@ poly_aftertouch_test() ->
     Result1 = roundtrip(Msg1),
     ?assert(Result1 =:= Msg1).
 
-cc_test() ->
-    true.
-
 program_change_test() ->
-    true.
+    Msg1 = {midi, {program_change, [{channel, 8},
+                                    {program, 64}]}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 pitch_bend_test() ->
     Msg1 = {midi, {pitch_bend, [{channel, 11},
@@ -53,24 +53,101 @@ pitch_bend_test() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 all_sound_off_test() ->
-    true.
+    Msg1 = {midi, all_sound_off},
+    Result1 = roundtrip(Msg1),
+    Msg11 = {midi, {mode, [{channel, 1},
+                           {control, all_sound_off}]}},
+    ?assert(Result1 =:= Msg11),
+    Msg2 = {midi, {mode, [{channel, 3},
+                          {control, all_sound_off}]}},
+    Result2 = roundtrip(Msg2),
+    ?assert(Result2 =:= Msg2).
 
 reset_all_test() ->
-    true.
+    Msg1 = {midi, reset_all},
+    Result1 = roundtrip(Msg1),
+    Msg11 = {midi, {mode, [{channel, 1},
+                           {control, reset_all}]}},
+    ?assert(Result1 =:= Msg11),
+    Msg2 = {midi, {mode, [{channel, 3},
+                          {control, reset_all}]}},
+    Result2 = roundtrip(Msg2),
+    ?assert(Result2 =:= Msg2).
 
-notes_off_test() ->
-    true.
+local_control_off_test() ->
+    Msg1 = {midi, local_control_off},
+    Result1 = roundtrip(Msg1),
+    Msg11 = {midi, {mode, [{channel, 1},
+                           {control, local_control_off}]}},
+    ?assert(Result1 =:= Msg11),
+    Msg2 = {midi, {mode, [{channel, 3},
+                          {control, local_control_off}]}},
+    Result2 = roundtrip(Msg2),
+    ?assert(Result2 =:= Msg2).
+
+local_control_on_test() ->
+    Msg1 = {midi, local_control_on},
+    Result1 = roundtrip(Msg1),
+    Msg11 = {midi, {mode, [{channel, 1},
+                           {control, local_control_on}]}},
+    ?assert(Result1 =:= Msg11),
+    Msg2 = {midi, {mode, [{channel, 3},
+                          {control, local_control_on}]}},
+    Result2 = roundtrip(Msg2),
+    ?assert(Result2 =:= Msg2).
+
+all_notes_off_test() ->
+    Msg1 = {midi, all_notes_off},
+    Result1 = roundtrip(Msg1),
+    Msg11 = {midi, {mode, [{channel, 1},
+                           {control, all_notes_off}]}},
+    ?assert(Result1 =:= Msg11),
+    Msg2 = {midi, {mode, [{channel, 3},
+                          {control, all_notes_off}]}},
+    Result2 = roundtrip(Msg2),
+    ?assert(Result2 =:= Msg2).
 
 omni_mode_off_test() ->
-    true.
+    Msg1 = {midi, omni_mode_off},
+    Result1 = roundtrip(Msg1),
+    Msg11 = {midi, {mode, [{channel, 1},
+                           {control, omni_mode_off}]}},
+    ?assert(Result1 =:= Msg11),
+    Msg2 = {midi, {mode, [{channel, 3},
+                          {control, omni_mode_off}]}},
+    Result2 = roundtrip(Msg2),
+    ?assert(Result2 =:= Msg2).
 
 omni_mode_on_test() ->
-    true.
+    Msg1 = {midi, omni_mode_on},
+    Result1 = roundtrip(Msg1),
+    Msg11 = {midi, {mode, [{channel, 1},
+                           {control, omni_mode_on}]}},
+    ?assert(Result1 =:= Msg11),
+    Msg2 = {midi, {mode, [{channel, 3},
+                          {control, omni_mode_on}]}},
+    Result2 = roundtrip(Msg2),
+    ?assert(Result2 =:= Msg2).
 
-poly_mode_off_test() ->
-    true.
+%mono_mode_on_test() ->
+%    true.
 
 poly_mode_on_test() ->
+    Msg1 = {midi, poly_mode_on},
+    Result1 = roundtrip(Msg1),
+    Msg11 = {midi, {mode, [{channel, 1},
+                           {control, poly_mode_on}]}},
+    ?assert(Result1 =:= Msg11),
+    Msg2 = {midi, {mode, [{channel, 3},
+                          {control, poly_mode_on}]}},
+    Result2 = roundtrip(Msg2),
+    ?assert(Result2 =:= Msg2).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%% ENCODE: Control Change Messages %%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+cc_test() ->
     true.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
