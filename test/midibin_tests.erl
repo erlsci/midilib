@@ -148,7 +148,11 @@ poly_mode_on_test() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 cc_test() ->
-    true.
+    Msg1 = {midi, {cc, [{channel, 2},
+                        {control, 64},
+                        {value, 127}]}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= Msg1).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% System Common Messages %%%%%

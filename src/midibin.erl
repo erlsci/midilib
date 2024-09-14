@@ -330,7 +330,16 @@ encode({midi, poly_mode_on}) ->
 %%%%% ENCODE: Control Change Messages %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% cc
+encode({midi, {cc, [{channel, Channel},
+                    {control, Control},
+                    {value, Value}]}}) ->
+    <<1:1, 3:3, (Channel - 1):4, 0:1, Control:7, 0:1, Value:7>>;
+
+encode({midi, {cc, [{control, Control},
+                    {value, Value}]}}) ->
+    encode({midi, {cc, [{channel, 1},
+                        {control, Control},
+                        {value, Value}]}});
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% ENCODE: System Common Messages %%%%%
