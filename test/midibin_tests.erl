@@ -242,6 +242,18 @@ batch_test() ->
     Result2 = roundtrip(Msg2),
     ?assert(Result2 =:= Msg2).
 
+batch_with_error_test() ->
+    Msg1 = {midi, {batch, [{midi, {realtime, clock}},
+                           {midi, {realtime, start}},
+                           {"oops"},
+                           {midi, {realtime, stop}},
+                           {midi, {realtime, continue}}
+                          ]}},
+    Result1 = roundtrip(Msg1),
+    ?assert(Result1 =:= {midi, {batch, [{midi,{realtime,clock}},
+                                        {midi,{realtime,start}},
+                                        {error,"non-MIDI message"}]}}).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%% Unexpected Messages %%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

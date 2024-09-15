@@ -442,4 +442,10 @@ decode_batch([Head|Tail], Acc) ->
 encode_batch([], Acc) ->
     Acc;
 encode_batch([Head|Tail], Acc) ->
-    encode_batch(Tail, Acc ++ [encode(Head)]).
+    Encoded = encode(Head),
+    case Encoded of
+        {error, _} ->
+            Acc ++ [Encoded]; % stop immediately in case of error
+        _ ->
+            encode_batch(Tail, Acc ++ [Encoded])
+    end.
