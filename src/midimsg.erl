@@ -211,10 +211,10 @@ note_off(Pitch) ->
     {midi, {note_off, Pitch}}.
 -spec note_off (integer(), integer()) -> tuple().
 note_off(Pitch, Velocity) ->
-    {midi, {node_off, [{pitch, Pitch},
+    {midi, {note_off, [{pitch, Pitch},
                        {velocity, Velocity}]}}.
 note_off(Channel, Pitch, Velocity) -> 
-    {midi, {node_off, [{channel, Channel},
+    {midi, {note_off, [{channel, Channel},
                        {pitch, Pitch},
                        {velocity, Velocity}]}}.
 
