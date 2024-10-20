@@ -54,7 +54,7 @@
     rt_tick/0
 ]).
 -export([
-    cc/2,
+    cc/2, cc/3,
     program_change/1, program_change/2
 ]).
 -export([
@@ -252,8 +252,13 @@ poly_aftertouch(Channel, Pitch, Pressure) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec cc (integer(), integer()) -> tuple().
-cc(Controller, Value) ->
-    {midi, {cc, [{controller, Controller},
+cc(Control, Value) ->
+    {midi, {cc, [{control, Control},
+                 {value, Value}]}}.
+
+cc(Channel, Control, Value) ->
+    {midi, {cc, [{channel, Channel},
+                 {control, Control},
                  {value, Value}]}}.
 
 -spec program_change (integer()) -> tuple().
