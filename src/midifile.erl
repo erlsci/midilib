@@ -76,8 +76,13 @@ decode_division(Hi, Tpf) when Hi >= 16#80, Tpf >= 1 ->
 decode_division(Hi, Lo) when Hi < 16#80, ((Hi bsl 8) bor Lo) >= 1 ->
     {ppqn, (Hi bsl 8) bor Lo}.
 
-%% Parse exactly NumTracks MTrk chunks. Bytes after the last track are ignored;
-%% a chunk that is not MTrk while tracks remain is malformed and crashes (R4).
+%% Parse NumTracks MTrk chunks. NumTracks counts MTrk chunks only (RP-001), so
+%% an alien (non-MTrk) chunk is skipped by its own declared length and does NOT
+%% decrement the count — the SMF spec anticipates alien chunks and says to "treat
+%% them as if they weren't there." Bytes/chunks after the last track are ignored.
+%% A chunk whose declared length overruns the remaining bytes (truncation), or
+%% the header promising more MTrk chunks than the file holds, matches no clause
+%% and crashes — genuinely malformed, not spec-legal (R4).
 -spec parse_tracks(binary(), non_neg_integer(), [#track{}]) ->
           {ok, [#track{}]} | {error, midierrs:reason()}.
 parse_tracks(_Bin, 0, Acc) ->
@@ -87,7 +92,12 @@ parse_tracks(<<"MTrk", Len:32, TrackData:Len/binary, Rest/binary>>, N, Acc)
     case parse_track(TrackData) of
         {ok, Track}        -> parse_tracks(Rest, N - 1, [Track | Acc]);
         {error, _} = Error -> Error
-    end.
+    end;
+%% Alien chunk: skip its declared length, keep the track count (FP-12: this must
+%% follow the MTrk clause, which also matches this shape and must win).
+parse_tracks(<<_Type:4/binary, Len:32, _Skip:Len/binary, Rest/binary>>, N, Acc)
+  when N > 0 ->
+    parse_tracks(Rest, N, Acc).
 
 -spec parse_track(binary()) -> {ok, #track{}} | {error, midierrs:reason()}.
 parse_track(TrackData) ->

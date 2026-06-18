@@ -93,6 +93,48 @@ format1_read_test() ->
     ?assertMatch([#track{}, #track{}], Seq#seq.tracks).
 
 %%% --------------------------------------------------------------------------
+%%% Row 21 (F-CDC-1) — alien chunks are skipped per RP-001, not crashed on
+%%% --------------------------------------------------------------------------
+
+%% A spec-legal alien chunk: 4-byte type, 32-bit length, that many bytes.
+alien() -> <<"XYZW", 3:32, 1, 2, 3>>.
+
+%% An alien chunk before the first track is skipped; the track still reads.
+alien_chunk_before_first_track_test() ->
+    Bin = <<(mthd(0, 1, ppqn_480()))/binary,
+            (alien())/binary,
+            (mtrk(<<0, 16#90, 60, 100, (eot())/binary>>))/binary>>,
+    {ok, #seq{tracks = [#track{events = [Ev | _]}]}} = read_bytes(Bin),
+    ?assertEqual(#note_on{channel = 1, pitch = 60, velocity = 100}, Ev#event.message).
+
+%% An alien chunk between two MTrk chunks is skipped; both tracks read, and the
+%% alien is NOT counted as a track (ntrks counts MTrk only).
+alien_chunk_between_tracks_test() ->
+    T1 = mtrk(<<0, 16#90, 60, 100, (eot())/binary>>),
+    T2 = mtrk(<<0, 16#80, 60, 64, (eot())/binary>>),
+    Bin = <<(mthd(1, 2, ppqn_480()))/binary, T1/binary, (alien())/binary, T2/binary>>,
+    {ok, #seq{tracks = [#track{events = [E1 | _]}, #track{events = [E2 | _]}]}} =
+        read_bytes(Bin),
+    ?assertEqual(#note_on{channel = 1, pitch = 60, velocity = 100}, E1#event.message),
+    ?assertEqual(#note_off{channel = 1, pitch = 60, velocity = 64}, E2#event.message).
+
+%% A trailing alien chunk after the last track is ignored (count already 0).
+alien_chunk_trailing_ignored_test() ->
+    Bin = <<(mthd(0, 1, ppqn_480()))/binary,
+            (mtrk(<<0, 16#90, 60, 100, (eot())/binary>>))/binary,
+            (alien())/binary>>,
+    {ok, #seq{tracks = [#track{events = [Ev | _]}]}} = read_bytes(Bin),
+    ?assertEqual(#note_on{channel = 1, pitch = 60, velocity = 100}, Ev#event.message).
+
+%% A truncated chunk (declared length overruns the remaining bytes) is genuinely
+%% malformed and still crashes — alien-skipping must not swallow real corruption.
+truncated_chunk_still_crashes_test() ->
+    %% Declares 99 bytes but supplies 2; neither the MTrk nor the alien clause
+    %% can match, so read/1 crashes (the bytes are corrupt, not spec-legal).
+    Bin = <<(mthd(0, 1, ppqn_480()))/binary, "XYZW", 99:32, 1, 2>>,
+    ?assertError(_, read_bytes(Bin)).
+
+%%% --------------------------------------------------------------------------
 %%% #1 / S2 — multi-byte SysEx reads without desync (the Blocker)
 %%% --------------------------------------------------------------------------
 

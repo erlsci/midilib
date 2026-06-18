@@ -114,3 +114,31 @@ the triggering bytes are reviewable without running anything. Row 3 is the
 behaviour-preservation contract: `git diff test/midibin_tests.erl
 test/prop_midibin.erl` must stay empty. Re-run `rebar3 as test check` and the
 combined-coverage commands above to reproduce.
+
+## Follow-up 1 — skip alien chunks (closes F-CDC-1)
+
+CDC was right, and the original closing report's "let-it-crash (R4)" defence of
+the non-`MTrk` crash was the wrong call. An alien chunk is *spec-anticipated*
+(RP-001: "expect alien chunks and treat them as if they weren't there"), so
+handling it is ordinary control flow, not a crash. The rewrite was actually
+stricter than the `look_for_chunk` predecessor it replaced, which is a
+robustness regression.
+
+**Change (one clause, `src/midifile.erl`).** Added a chunk-skip clause to
+`parse_tracks/3`: any `<4-byte type><32-bit length><length bytes>` that is not
+`MTrk` is skipped by its own declared length **without** decrementing the track
+count (`ntrks` counts `MTrk` chunks only, RP-001). The `MTrk` clause precedes it
+(FP-12) so `MTrk` always wins; no shadowing. The `parse_tracks/3` `-spec` is
+unchanged. No other module touched.
+
+**What still crashes (deliberately not softened).** A chunk whose declared
+length overruns the remaining bytes (truncation/corruption) matches neither
+clause and crashes; so does the header promising more `MTrk` chunks than the
+file holds. The fix handles the spec-legal, not real corruption.
+
+**Evidence.** Four new inline-binary fixtures (ledger row 21):
+`alien_chunk_before_first_track_test`, `alien_chunk_between_tracks_test`,
+`alien_chunk_trailing_ignored_test`, and `truncated_chunk_still_crashes_test`
+(`?assertError`). `rebar3 as test check` → exit 0; `rebar3 as test dialyzer` →
+0 warnings; **111 eunit tests** (107 + 4) and **2 PropEr properties** pass. The
+other 20 rows are untouched.
