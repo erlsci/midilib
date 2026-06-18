@@ -1,16 +1,16 @@
 # midilib
 
-*Erlang MIDI Library*
-
 [![Build Status][gh-actions-badge]][gh-actions]
 [![Erlang Versions][erlang-badge]][versions]
 [![Tag][github-tag-badge]][github-tag]
 
 [![Project Logo][logo]][logo-large]
 
+*An Erlang MIDI Library*
+
 ## Setup
 
-Include one of the following in your project's `rebar.config`: 
+Include one of the following in your project's `rebar.config`:
 
 ``` erlang
 %% Latest Release
@@ -18,7 +18,9 @@ Include one of the following in your project's `rebar.config`:
   {midilib, "0.5.0"}
 ]}.
 ```
+
 or
+
 ``` erlang
 %% Development
 {deps, [
@@ -49,7 +51,7 @@ names, and more.
 Perform any checks / tests:
 
 ``` shell
-$ rebar3 as test check
+rebar3 as test check
 ```
 
 ## Resources
@@ -62,16 +64,13 @@ $ rebar3 as test check
 
 MIT License
 
-
 [//]: ---Named-Links---
 
 [logo]: priv/images/logo-v1-x250.png
 [logo-large]: priv/images/logo-v1-x1000.png
-[github]: https://github.com/erlsci/midilib
 [gh-actions-badge]: https://github.com/erlsci/midilib/workflows/ci/badge.svg
 [gh-actions]: https://github.com/erlsci/midilib/actions
 [erlang-badge]: https://img.shields.io/badge/erlang-22%20to%2029-blue.svg
 [versions]: https://github.com/erlsci/osc/blob/master/.github/workflows/cicd.yml
 [github-tag]: https://github.com/erlsci/midilib/tags
 [github-tag-badge]: https://img.shields.io/github/tag/erlsci/midilib.svg
-[github-downloads]: https://img.shields.io/github/downloads/erlsci/midilib/total.svg
