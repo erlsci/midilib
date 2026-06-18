@@ -8,6 +8,7 @@
     ]},
     {modules, [
         midibin,
+        midi_codec,
         midifile,
         midilib,
         midimsg,
