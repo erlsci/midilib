@@ -68,9 +68,9 @@ MIT License
 [logo]: priv/images/logo-v1-x250.png
 [logo-large]: priv/images/logo-v1-x1000.png
 [github]: https://github.com/erlsci/midilib
-[gh-actions-badge]: https://github.com/erlsci/midilib/workflows/ci%2Fcd/badge.svg
+[gh-actions-badge]: https://github.com/erlsci/midilib/workflows/ci/badge.svg
 [gh-actions]: https://github.com/erlsci/midilib/actions
-[erlang-badge]: https://img.shields.io/badge/erlang-21%20to%2027-blue.svg
+[erlang-badge]: https://img.shields.io/badge/erlang-22%20to%2029-blue.svg
 [versions]: https://github.com/erlsci/osc/blob/master/.github/workflows/cicd.yml
 [github-tag]: https://github.com/erlsci/midilib/tags
 [github-tag-badge]: https://img.shields.io/github/tag/erlsci/midilib.svg

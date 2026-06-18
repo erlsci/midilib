@@ -356,7 +356,7 @@ tempo(X) ->
 %%%%% Deprecated %%%%%
 %%%%%%%%%%%%%%%%%%%%%%
 
--spec bank_select (integer(), integer(), integer()) -> list().
+-spec bank_select (integer(), integer(), integer()) -> tuple().
 bank_select(MsbValue, LsbValue, ProgChValue) ->
     batch([bank_select_msb(MsbValue),
            bank_select_lsb(LsbValue),

@@ -3,8 +3,8 @@
 **Status:** planning (arc breakdown)
 **Current version:** 0.5.2 → **target 0.6.0**
 **Stability:** pre-1.0; **breaking changes permitted and expected**.
-**Drives from:** `workbench/audit/2026.06.17-audit-index.md` (CC audit) and
-`workbench/audit/2026.06.17-audit-eval-cdc.md` (CDC evaluation — verdict: GO).
+**Drives from:** `arc00-audit/2026.06.17-audit-index.md` (CC audit) and
+`arc00-audit/2026.06.17-audit-eval-cdc.md` (CDC evaluation — verdict: GO).
 
 ## 1. Why this release exists
 

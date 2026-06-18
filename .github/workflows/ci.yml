@@ -1,4 +1,4 @@
-name: ci/cd
+name: ci
 
 on:
   workflow_dispatch:
@@ -17,14 +17,14 @@ jobs:
 
     strategy:
       matrix:
-        otp_version: ['27', '26', '25', '24']
+        otp_version: ['29', '28', '27', '26', '25', '24']
 
     steps:
     - uses: actions/checkout@v4
     - uses: erlef/setup-beam@v1
       with:
         otp-version: ${{ matrix.otp_version }}
-        rebar3-version: '3.22'
+        rebar3-version: '3.27'
     - name: Check rebar3 Version
       run: DEBUG=1 rebar3 --version
     - name: Compile
@@ -48,7 +48,7 @@ jobs:
 
     strategy:
       matrix:
-        otp_version: ['23', '22', '21']
+        otp_version: ['23', '22']
 
     steps:
     - uses: actions/checkout@v4
