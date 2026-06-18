@@ -1,382 +1,251 @@
+%%% ===========================================================================
+%%% midifile — Standard MIDI File (SMF) codec.
+%%%
+%%% The FILE framer: chunk structure (MThd/MTrk), the variable-length-quantity
+%%% codec, delta-times, and running-status elision/expansion. Message bodies are
+%%% mapped by midi_codec (the shared, framing-free core), so the file and wire
+%%% codecs can never disagree on how a message is laid out.
+%%%
+%%% read/1 reads the whole file into a binary and parses it functionally — no
+%%% per-byte file:pread scan (audit #22), no process-dictionary running-status
+%%% state (audit #18): the last status byte is threaded as an argument and reset
+%%% at the start of each track. Output is the canonical vocabulary
+%%% (include/midi_msg.hrl): #seq{format, division, tracks} with a uniform track
+%%% list (no conductor-track split — format 1's conductor is hd(tracks)), typed
+%%% division ({ppqn,N} | {smpte,Fps,Tpf}), and 1-based channels (the ±1 lives in
+%%% midi_codec, at the file edge only).
+%%%
+%%% Predictable failures are values (DESIGN §6): a file that opens but has no
+%%% MThd is {error, {not_midi_file, Path}}; an open failure is
+%%% {error, {open, Path, Reason}}; a malformed VLQ is {error, {bad_vlq, Bytes}}.
+%%% Genuinely malformed track bytes (a truncated event, a data byte with no
+%%% running status to apply) crash — let it crash (R4); they are not part of the
+%%% predictable contract.
+%%%
+%%% Kept portable: the v0.6.0 support floor is OTP 22-29 (Arc-3 row 12), so the
+%%% OTP-27+ -moduledoc/-doc attributes are intentionally not used.
+%%% ===========================================================================
 -module(midifile).
 -export([read/1, write/2]).
 -author("Jim Menard, jim@jimmenard.com").
 
+-include("include/midi_msg.hrl").
 -include("include/midi.hrl").
 
-%% This module reads and writes MIDI files.
-
-%-define(DEBUG, true).
--ifdef(DEBUG).
--define(DPRINT(X, Y), io:format(X, Y)).
--else.
--define(DPRINT(X, Y), void).
--endif.
-
-
-%% Returns
-%%   {seq, {header...}, ConductorTrack, ListOfTracks}
-%% header is {header, Format, Division}
-%% ConductorTrack is the first track of a format 1 MIDI file
-%% each track including the conductor track is
-%%   {track, ListOfEvents}
-%% each event is
-%%   {event_name, DeltaTime, [values...]}
-%% where values after DeltaTime are specific to each event type. If the value
-%% is a string, then the string appears instead of [values...].
+%%% ===========================================================================
+%%% READ
+%%% ===========================================================================
+%% Read an SMF from disk into the canonical #seq{}. Whole-file read, then a pure
+%% in-memory parse (the parser is exercised directly by the test fixtures).
+-spec read(file:name_all()) -> {ok, #seq{}} | {error, midierrs:reason()}.
 read(Path) ->
-    case file:open(Path, [read, binary, raw]) of
-	{ok, F} ->
-	    FilePos = look_for_chunk(F, 0, <<$M, $T, $h, $d>>,
-				     file:pread(F, 0, 4)),
-	    [Header, NumTracks] = parse_header(file:pread(F, FilePos, 10)),
-	    Tracks = read_tracks(F, NumTracks, FilePos + 10, []),
-	    file:close(F),
-	    [ConductorTrack | RemainingTracks] = Tracks,
-	    {seq, Header, ConductorTrack, RemainingTracks};
-	Error ->
-	    {Path, Error}
+    case file:read_file(Path) of
+        {ok, Bin}       -> parse(Bin, Path);
+        {error, Reason} -> {error, {open, Path, Reason}}
     end.
 
-% Look for Cookie in file and return file position after Cookie.
-look_for_chunk(_F, FilePos, Cookie, {ok, Cookie}) ->
-    FilePos + size(Cookie);
-look_for_chunk(F, FilePos, Cookie, {ok, _}) ->
-    % This isn't efficient, because we only advance one character at a time.
-    % We should really look for the first char in Cookie and, if found,
-    % advance that far.
-    look_for_chunk(F, FilePos + 1, Cookie, file:pread(F, FilePos + 1,
-						      size(Cookie))).
-
-parse_header({ok, <<_BytesToRead:32/integer, Format:16/integer,
-		   NumTracks:16/integer, Division:16/integer>>}) ->
-   [{header, Format, Division}, NumTracks].
-
-read_tracks(_F, 0, _FilePos, Tracks) ->
-    lists:reverse(Tracks);
-% TODO: make this distributed. Would need to scan each track to get start
-% position of next track.
-read_tracks(F, NumTracks, FilePos, Tracks) ->
-    ?DPRINT("read_tracks, NumTracks = ~p, FilePos = ~p~n",
-	    [NumTracks, FilePos]),
-    [Track, NextTrackFilePos] = read_track(F, FilePos),
-    ?DPRINT("read_tracks, NextTrackFilePos = ~p~n", [NextTrackFilePos]),
-    read_tracks(F, NumTracks - 1, NextTrackFilePos, [Track|Tracks]).
-
-read_track(F, FilePos) ->
-    TrackStart = look_for_chunk(F, FilePos, <<$M, $T, $r, $k>>,
-				file:pread(F, FilePos, 4)),
-    BytesToRead = parse_track_header(file:pread(F, TrackStart, 4)),
-    ?DPRINT("reading track, FilePos = ~p, BytesToRead = ~p~n",
-	    [TrackStart, BytesToRead]),
-    ?DPRINT("next track pos = ~p~n", [TrackStart + 4 + BytesToRead]),
-    put(status, 0),
-    put(chan, -1),
-    [{track, event_list(F, TrackStart + 4, BytesToRead, [])},
-     TrackStart + 4 + BytesToRead].
-
-parse_track_header({ok, <<BytesToRead:32/integer>>}) ->
-    BytesToRead.
-
-event_list(_F, _FilePos, 0, Events) ->
-    lists:reverse(Events);
-event_list(F, FilePos, BytesToRead, Events) ->
-    [DeltaTime, VarLenBytesUsed] = read_var_len(file:pread(F, FilePos, 4)),
-    {ok, ThreeBytes} = file:pread(F, FilePos+VarLenBytesUsed, 3),
-    ?DPRINT("reading event, FilePos = ~p, BytesToRead = ~p, ThreeBytes = ~p~n",
-	    [FilePos, BytesToRead, ThreeBytes]),
-    [Event, EventBytesRead] =
-	read_event(F, FilePos+VarLenBytesUsed, DeltaTime, ThreeBytes),
-    BytesRead = VarLenBytesUsed + EventBytesRead,
-    event_list(F, FilePos + BytesRead, BytesToRead - BytesRead, [Event|Events]).
-
-read_event(_F, _FilePos, DeltaTime,
-	   <<?STATUS_NIBBLE_OFF:4, Chan:4, Note:8, Vel:8>>) ->
-    ?DPRINT("off~n", []),
-    put(status, ?STATUS_NIBBLE_OFF),
-    put(chan, Chan),
-    [{off, DeltaTime, [Chan, Note, Vel]}, 3];
-% note on, velocity 0 is a note off
-read_event(_F, _FilePos, DeltaTime,
-	   <<?STATUS_NIBBLE_ON:4, Chan:4, Note:8, 0:8>>) ->
-    ?DPRINT("off (using on vel 0)~n", []),
-    put(status, ?STATUS_NIBBLE_ON),
-    put(chan, Chan),
-    [{off, DeltaTime, [Chan, Note, 64]}, 3];
-read_event(_F, _FilePos, DeltaTime,
-	   <<?STATUS_NIBBLE_ON:4, Chan:4, Note:8, Vel:8>>) ->
-    ?DPRINT("on~n", []),
-    put(status, ?STATUS_NIBBLE_ON),
-    put(chan, Chan),
-    [{on, DeltaTime, [Chan, Note, Vel]}, 3];
-read_event(_F, _FilePos, DeltaTime,
-	   <<?STATUS_NIBBLE_POLY_PRESS:4, Chan:4, Note:8, Amount:8>>) ->
-    ?DPRINT("poly press~n", []),
-    put(status, ?STATUS_NIBBLE_POLY_PRESS),
-    put(chan, Chan),
-    [{poly_press, DeltaTime, [Chan, Note, Amount]}, 3];
-read_event(_F, _FilePos, DeltaTime,
-	   <<?STATUS_NIBBLE_CONTROLLER:4, Chan:4, Controller:8, Value:8>>) ->
-    ?DPRINT("controller ch ~p, ctrl ~p, val ~p~n", [Chan, Controller, Value]),
-    put(status, ?STATUS_NIBBLE_CONTROLLER),
-    put(chan, Chan),
-    [{controller, DeltaTime, [Chan, Controller, Value]}, 3];
-read_event(_F, _FilePos, DeltaTime,
-	   <<?STATUS_NIBBLE_PROGRAM_CHANGE:4, Chan:4, Program:8, _:8>>) ->
-    ?DPRINT("prog change~n", []),
-    put(status, ?STATUS_NIBBLE_PROGRAM_CHANGE),
-    put(chan, Chan),
-    [{program, DeltaTime, [Chan, Program]}, 2];
-read_event(_F, _FilePos, DeltaTime,
-	   <<?STATUS_NIBBLE_CHANNEL_PRESSURE:4, Chan:4, Amount:8, _:8>>) ->
-    ?DPRINT("chan pressure~n", []),
-    put(status, ?STATUS_NIBBLE_CHANNEL_PRESSURE),
-    put(chan, Chan),
-    [{chan_press, DeltaTime, [Chan, Amount]}, 2];
-read_event(_F, _FilePos, DeltaTime,
-	   <<?STATUS_NIBBLE_PITCH_BEND:4, Chan:4, 0:1, LSB:7, 0:1, MSB:7>>) ->
-    ?DPRINT("pitch bend~n", []),
-    put(status, ?STATUS_NIBBLE_PITCH_BEND),
-    put(chan, Chan),
-    [{pitch_bend, DeltaTime, [Chan, <<0:2, MSB:7, LSB:7>>]}, 3];
-read_event(_F, _FilePos, DeltaTime,
-	   <<?STATUS_META_EVENT:8, ?META_TRACK_END:8, 0:8>>) ->
-    ?DPRINT("end of track~n", []),
-    put(status, ?STATUS_META_EVENT),
-    put(chan, 0),
-    [{track_end, DeltaTime, []}, 3];
-read_event(F, FilePos, DeltaTime, <<?STATUS_META_EVENT:8, Type:8, _:8>>) ->
-    ?DPRINT("meta event~n", []),
-    put(status, ?STATUS_META_EVENT),
-    put(chan, 0),
-    [Length, LengthBytesUsed] = read_var_len(file:pread(F, FilePos + 2, 4)),
-    LengthBeforeData = LengthBytesUsed + 2,
-    {ok, Data} = file:pread(F, FilePos + LengthBeforeData, Length),
-    TotalLength = LengthBeforeData + Length,
-    ?DPRINT("  type = ~p, var len = ~p, len before data = ~p, total len = ~p,~n  data = ~p~n",
-	      [Type, Length, LengthBeforeData, TotalLength, Data]),
-    case Type of
-	?META_SEQ_NUM ->
-	    [{seq_num, DeltaTime, [Data]}, TotalLength];
-	?META_TEXT ->
-	    [{text, DeltaTime, binary_to_list(Data)}, TotalLength];
-	?META_COPYRIGHT ->
-	    [{copyright, DeltaTime, binary_to_list(Data)}, TotalLength];
-	?META_SEQ_NAME ->
-	    [{seq_name, DeltaTime, binary_to_list(Data)}, TotalLength];
-	?META_INSTRUMENT ->
-	    [{instrument, DeltaTime, binary_to_list(Data)}, TotalLength];
-	?META_LYRIC ->
-	    [{lyric, DeltaTime, binary_to_list(Data)}, TotalLength];
-	?META_MARKER ->
-	    [{marker, DeltaTime, binary_to_list(Data)}, TotalLength];
-	?META_CUE ->
-	    [{cue, DeltaTime, binary_to_list(Data)}, TotalLength];
-	?META_MIDI_CHAN_PREFIX ->
-	    [{midi_chan_prefix, DeltaTime, [Data]}, TotalLength];
-	?META_SET_TEMPO ->
-	    % Data is microseconds per quarter note, in three bytes
-	    <<B0:8, B1:8, B2:8>> = Data,
-	    [{tempo, DeltaTime, [(B0 bsl 16) + (B1 bsl 8) + B2]}, TotalLength];
-	?META_SMPTE ->
-	    [{smpte, DeltaTime, [Data]}, TotalLength];
-	?META_TIME_SIG ->
-	    [{time_signature, DeltaTime, [Data]}, TotalLength];
-	?META_KEY_SIG ->
-	    [{key_signature, DeltaTime, [Data]}, TotalLength];
-	?META_SEQUENCER_SPECIFIC ->
-	    [{seq_name, DeltaTime, [Data]}, TotalLength];
-	_ ->
-	    ?DPRINT("  unknown meta type ~p~n", [Type]),
-	    [{unknown_meta, DeltaTime, [Type, Data]}, TotalLength]
+%% Parse a complete SMF binary. A valid header is `MThd <len:32> <body>` with
+%% len >= 6 and a format in 0..2; anything else is {not_midi_file, Path} (M2) —
+%% including a file that opens but does not start with a usable MThd chunk.
+-spec parse(binary(), file:name_all()) -> {ok, #seq{}} | {error, midierrs:reason()}.
+parse(<<"MThd", Len:32, Body:Len/binary, Rest/binary>>, Path)
+  when Len >= 6 ->
+    <<Format:16, NumTracks:16, DivHi:8, DivLo:8, _/binary>> = Body,
+    case Format =< 2 of
+        true ->
+            Division = decode_division(DivHi, DivLo),
+            case parse_tracks(Rest, NumTracks, []) of
+                {ok, Tracks} ->
+                    {ok, #seq{format = Format, division = Division, tracks = Tracks}};
+                {error, _} = Error ->
+                    Error
+            end;
+        false ->
+            {error, {not_midi_file, Path}}
     end;
-read_event(F, FilePos, DeltaTime, <<?STATUS_SYSEX:8, _:16>>) ->
-    ?DPRINT("sysex~n", []),
-    put(status, ?STATUS_SYSEX),
-    put(chan, 0),
-    [Length, LengthBytesUsed] = read_var_len(file:pread(F, FilePos + 1, 4)),
-    {ok, Data} = file:pread(F, FilePos + LengthBytesUsed, Length),
-    [{sysex, DeltaTime, [Data]}, LengthBytesUsed + Length];
-% Handle running status bytes
-read_event(F, FilePos, DeltaTime, <<B0:8, B1:8, _:8>>) when B0 < 128 ->
-    Status = get(status),
-    Chan = get(chan),
-    ?DPRINT("running status byte, status = ~p, chan = ~p~n", [Status, Chan]),
-    [Event, NumBytes] =
-	read_event(F, FilePos, DeltaTime, <<Status:4, Chan:4, B0:8, B1:8>>),
-    [Event, NumBytes - 1];
-read_event(_F, _FilePos, DeltaTime, <<Unknown:8, _:16>>) ->
-    ?DPRINT("unknown byte ~p~n", [Unknown]),
-    put(status, 0),
-    put(chan, 0),
-%    exit("Unknown status byte " ++ Unknown).
-    [{unknown_status, DeltaTime, [Unknown]}, 3].
+parse(_Bin, Path) ->
+    {error, {not_midi_file, Path}}.
 
-read_var_len({ok, <<0:1, B0:7, _:24>>}) ->
-    [B0, 1];
-read_var_len({ok, <<1:1, B0:7, 0:1, B1:7, _:16>>}) ->
-    [(B0 bsl 7) + B1, 2];
-read_var_len({ok, <<1:1, B0:7, 1:1, B1:7, 0:1, B2:7, _:8>>}) ->
-    [(B0 bsl 14) + (B1 bsl 7) + B2, 3];
-read_var_len({ok, <<1:1, B0:7, 1:1, B1:7, 1:1, B2:7, 0:1, B3:7>>}) ->
-    [(B0 bsl 21) + (B1 bsl 14) + (B2 bsl 7) + B3, 4];
-read_var_len({ok, <<1:1, B0:7, 1:1, B1:7, 1:1, B2:7, 1:1, B3:7>>}) ->
-    ?DPRINT("WARNING: bad var len format; all 4 bytes have high bit set~n", []),
-    [(B0 bsl 21) + (B1 bsl 14) + (B2 bsl 7) + B3, 4].
+%% Division word: high bit set => SMPTE (high byte is the negative frame rate in
+%% two's complement, low byte is ticks-per-frame); clear => ticks per quarter
+%% note. A zero division (either form) is malformed and crashes (R4).
+-spec decode_division(0..255, 0..255) ->
+          {ppqn, pos_integer()} | {smpte, pos_integer(), pos_integer()}.
+decode_division(Hi, Tpf) when Hi >= 16#80, Tpf >= 1 ->
+    {smpte, 256 - Hi, Tpf};
+decode_division(Hi, Lo) when Hi < 16#80, ((Hi bsl 8) bor Lo) >= 1 ->
+    {ppqn, (Hi bsl 8) bor Lo}.
 
--ifdef(DEBUG).
-rvl(<<0:1, B0:7>>) ->
-    read_var_len({ok, <<0:1, B0:7, 0:8, 0:8, 0:8>>});
-rvl(<<1:1, B0:7, 0:1, B1:7>>) ->
-    read_var_len({ok, <<1:1, B0:7, 0:1, B1:7, 0:8, 0:8>>});
-rvl(<<1:1, B0:7, 1:1, B1:7, 0:1, B2:7>>) ->
-    read_var_len({ok, <<1:1, B0:7, 1:1, B1:7, 0:1, B2:7, 0:8>>});
-rvl(<<1:1, B0:7, 1:1, B1:7, 1:1, B2:7, 0:1, B3:7>>) ->
-    read_var_len({ok, <<1:1, B0:7, 1:1, B1:7, 1:1, B2:7, 0:1, B3:7>>}).
--endif.
-
-write({seq, Header, ConductorTrack, Tracks}, Path) ->
-    L = [header_io_list(Header, length(Tracks) + 1) |
-	 lists:map(fun(T) -> track_io_list(T) end, [ConductorTrack | Tracks])],
-    ok = file:write_file(Path, L).
-
-header_io_list(Header, NumTracks) ->
-    {header, _, Division} = Header,
-    ["MThd",
-     0, 0, 0, 6,				% header chunk size
-     0, 1,					% format,
-     (NumTracks bsr 8) band 255,		% num tracks
-      NumTracks        band 255,
-     (Division bsr 8) band 255,			% division
-      Division        band 255].
-
-track_io_list(Track) ->
-    {track, Events} = Track,
-    put(status, 0),
-    put(chan, 0),
-    EventList =  lists:map(fun(E) -> event_io_list(E) end, Events),
-    ChunkSize = chunk_size(EventList),
-    ["MTrk",
-     (ChunkSize bsr 24) band 255,
-     (ChunkSize bsr 16) band 255,
-     (ChunkSize bsr  8) band 255,
-      ChunkSize         band 255,
-     EventList].
-
-% Return byte size of L, which is an IO list that contains lists, bytes, and
-% binaries.
-chunk_size(L) ->
-    lists:foldl(fun(E, Acc) -> Acc + io_list_element_size(E) end, 0,
-		lists:flatten(L)).
-io_list_element_size(E) when is_binary(E) ->
-    size(E);
-io_list_element_size(_E) ->
-    1.
-
-event_io_list({off, DeltaTime, [Chan, Note, Vel]}) ->
-    RunningStatus = get(status),
-    RunningChan = get(chan),
-    if
-	RunningChan =:= Chan,
-	    (RunningStatus =:= ?STATUS_NIBBLE_OFF orelse
-	     (RunningStatus =:= ?STATUS_NIBBLE_ON andalso Vel =:= 64)) ->
-	    Status = [],
-	    OutVel = 0;
-	true ->
-	    Status = (?STATUS_NIBBLE_OFF bsl 4) + Chan,
-	    OutVel = Vel,
-	    put(status, ?STATUS_NIBBLE_OFF),
-	    put(chan, Chan)
-    end,
-    [var_len(DeltaTime), Status, Note, OutVel];
-event_io_list({on, DeltaTime, [Chan, Note, Vel]}) ->
-    [var_len(DeltaTime), running_status(?STATUS_NIBBLE_ON, Chan), Note, Vel];
-event_io_list({poly_press, DeltaTime, [Chan, Note, Amount]}) ->
-    [var_len(DeltaTime), running_status(?STATUS_NIBBLE_POLY_PRESS, Chan), Note,
-     Amount];
-event_io_list({controller, DeltaTime, [Chan, Controller, Value]}) ->
-    [var_len(DeltaTime), running_status(?STATUS_NIBBLE_CONTROLLER, Chan),
-     Controller, Value];
-event_io_list({program, DeltaTime, [Chan, Program]}) ->
-    [var_len(DeltaTime), running_status(?STATUS_NIBBLE_PROGRAM_CHANGE, Chan),
-     Program];
-event_io_list({chan_press, DeltaTime, [Chan, Amount]}) ->
-    [var_len(DeltaTime), running_status(?STATUS_NIBBLE_CHANNEL_PRESSURE, Chan),
-     Amount];
-event_io_list({pitch_bend, DeltaTime, [Chan, <<0:2, MSB:7, LSB:7>>]}) ->
-    [var_len(DeltaTime), running_status(?STATUS_NIBBLE_PITCH_BEND, Chan),
-     <<0:1, LSB:7, 0:1, MSB:7>>];
-event_io_list({track_end, DeltaTime}) ->
-    ?DPRINT("track_end~n", []),
-    put(status, ?STATUS_META_EVENT),
-    [var_len(DeltaTime), ?STATUS_META_EVENT, ?META_TRACK_END, 0];
-event_io_list({seq_num, DeltaTime, [Data]}) ->
-    meta_io_list(DeltaTime, ?META_SEQ_NUM, Data);
-event_io_list({text, DeltaTime, Data}) ->
-    meta_io_list(DeltaTime, ?META_TEXT, Data);
-event_io_list({copyright, DeltaTime, Data}) ->
-    meta_io_list(DeltaTime, ?META_COPYRIGHT, Data);
-event_io_list({seq_name, DeltaTime, Data}) ->
-    put(status, ?STATUS_META_EVENT),
-    meta_io_list(DeltaTime, ?META_TRACK_END, Data);
-event_io_list({instrument, DeltaTime, Data}) ->
-    meta_io_list(DeltaTime, ?META_INSTRUMENT, Data);
-event_io_list({lyric, DeltaTime, Data}) ->
-    meta_io_list(DeltaTime, ?META_LYRIC, Data);
-event_io_list({marker, DeltaTime, Data}) ->
-    meta_io_list(DeltaTime, ?META_MARKER, Data);
-event_io_list({cue, DeltaTime, Data}) ->
-    meta_io_list(DeltaTime, ?META_CUE, Data);
-event_io_list({midi_chan_prefix, DeltaTime, [Data]}) ->
-    meta_io_list(DeltaTime, ?META_MIDI_CHAN_PREFIX, Data);
-event_io_list({tempo, DeltaTime, [Data]}) ->
-    ?DPRINT("tempo, data = ~p~n", [Data]),
-    put(status, ?STATUS_META_EVENT),
-    [var_len(DeltaTime), ?STATUS_META_EVENT, ?META_SET_TEMPO, var_len(3),
-     (Data bsr 16) band 255,
-     (Data bsr  8) band 255,
-      Data         band 255];
-event_io_list({smpte, DeltaTime, [Data]}) ->
-    meta_io_list(DeltaTime, ?META_SMPTE, Data);
-event_io_list({time_signature, DeltaTime, [Data]}) ->
-    meta_io_list(DeltaTime, ?META_TIME_SIG, Data);
-event_io_list({key_signature, DeltaTime, [Data]}) ->
-    meta_io_list(DeltaTime, ?META_KEY_SIG, Data);
-event_io_list({sequencer_specific, DeltaTime, [Data]}) ->
-    meta_io_list(DeltaTime, ?META_SEQUENCER_SPECIFIC, Data);
-event_io_list({unknown_meta, DeltaTime, [Type, Data]}) ->
-    meta_io_list(DeltaTime, Type, Data).
-
-meta_io_list(DeltaTime, Type, Data) when is_binary(Data) ->
-    ?DPRINT("meta_io_list (bin) type = ~p, data = ~p~n", [Type, Data]),
-    put(status, ?STATUS_META_EVENT),
-    [var_len(DeltaTime), ?STATUS_META_EVENT, Type, var_len(size(Data)), Data];
-meta_io_list(DeltaTime, Type, Data) ->
-    ?DPRINT("meta_io_list type = ~p, data = ~p~n", [Type, Data]),
-    put(status, ?STATUS_META_EVENT),
-    [var_len(DeltaTime), ?STATUS_META_EVENT, Type, var_len(length(Data)), Data].
-
-running_status(HighNibble, Chan) ->
-    RunningStatus = get(status),
-    RunningChan = get(chan),
-    if
-	RunningStatus =:= HighNibble, RunningChan =:= Chan ->
-	    ?DPRINT("running status: stat = ~p, rchan = ~p~n",
-		    [RunningStatus, RunningChan]),
-	    [];
-	true ->
-	    put(status, HighNibble),
-	    put(chan, Chan),
-	    (HighNibble bsl 4) + Chan
+%% Parse exactly NumTracks MTrk chunks. Bytes after the last track are ignored;
+%% a chunk that is not MTrk while tracks remain is malformed and crashes (R4).
+-spec parse_tracks(binary(), non_neg_integer(), [#track{}]) ->
+          {ok, [#track{}]} | {error, midierrs:reason()}.
+parse_tracks(_Bin, 0, Acc) ->
+    {ok, lists:reverse(Acc)};
+parse_tracks(<<"MTrk", Len:32, TrackData:Len/binary, Rest/binary>>, N, Acc)
+  when N > 0 ->
+    case parse_track(TrackData) of
+        {ok, Track}        -> parse_tracks(Rest, N - 1, [Track | Acc]);
+        {error, _} = Error -> Error
     end.
 
-var_len(I) when I < (1 bsl 7) ->
-    <<0:1, I:7>>;
-var_len(I) when I < (1 bsl 14) ->
-    <<1:1, (I bsr 7):7, 0:1, I:7>>;
-var_len(I) when I < (1 bsl 21) ->
-    <<1:1, (I bsr 14):7, 1:1, (I bsr 7):7, 0:1, I:7>>;
-var_len(I) when I < (1 bsl 28) ->
-    <<1:1, (I bsr 21):7, 1:1, (I bsr 14):7, 1:1, (I bsr 7):7, 0:1, I:7>>;
-var_len(I) ->
-    exit("Value " ++ I ++ " is too big for a variable length number").
+-spec parse_track(binary()) -> {ok, #track{}} | {error, midierrs:reason()}.
+parse_track(TrackData) ->
+    %% Running status is reset (undefined) at the start of every track (#18).
+    case parse_events(TrackData, undefined, []) of
+        {ok, Events}       -> {ok, #track{events = Events}};
+        {error, _} = Error -> Error
+    end.
+
+%% The per-track event loop. State is the running-status byte (the last channel
+%% status, or `undefined`), threaded as an argument — no process dictionary.
+-spec parse_events(binary(), 0..255 | undefined, [#event{}]) ->
+          {ok, [#event{}]} | {error, midierrs:reason()}.
+parse_events(<<>>, _Running, Acc) ->
+    {ok, lists:reverse(Acc)};
+parse_events(Bin, Running, Acc) ->
+    case read_vlq(Bin) of
+        {ok, Delta, Rest} ->
+            case parse_event(Rest, Running) of
+                {ok, Message, NewRunning, Rest2} ->
+                    Event = #event{delta = Delta, message = Message},
+                    parse_events(Rest2, NewRunning, [Event | Acc]);
+                {error, _} = Error ->
+                    Error
+            end;
+        {error, _} = Error ->
+            Error
+    end.
+
+%% Parse one event body (the bytes after its delta-time), given the current
+%% running status. Returns the message, the new running status, and the rest.
+-spec parse_event(binary(), 0..255 | undefined) ->
+          {ok, message(), 0..255 | undefined, binary()}
+        | {error, midierrs:reason()}.
+%% Meta: FF <type> <vlq-len> <payload>. Clears running status.
+parse_event(<<?STATUS_META_EVENT, Type:8, Rest/binary>>, _Running) ->
+    case read_vlq(Rest) of
+        {ok, Len, Rest2} ->
+            case Rest2 of
+                <<Payload:Len/binary, Rest3/binary>> ->
+                    %% decode_meta/2 is total (unmodelled types -> #meta_unknown{}).
+                    {ok, Message} = midi_codec:decode_meta(Type, Payload),
+                    {ok, Message, undefined, Rest3};
+                _ ->
+                    error({truncated_meta, Type, Rest2})
+            end;
+        {error, _} = Error ->
+            Error
+    end;
+%% SysEx: F0 <vlq-len> <payload-including-trailing-F7>. The #1/S2 fix is in the
+%% accounting: the F0 byte is consumed by this match, the length VLQ follows,
+%% and exactly Len payload bytes are taken — so a multi-byte SysEx never
+%% desyncs the parser. The trailing F7 is stripped into #sysex.data. An F7-led
+%% event (a SysEx "escape"/continuation) shares the same VLQ framing.
+parse_event(<<?STATUS_SYSEX, Rest/binary>>, _Running) ->
+    parse_sysex(Rest);
+parse_event(<<?STATUS_EOX, Rest/binary>>, _Running) ->
+    parse_sysex(Rest);
+%% An explicit status byte (high bit set): a channel or system message.
+parse_event(<<Status:8, Rest/binary>>, Running) when Status >= 16#80 ->
+    read_data(Status, Rest, Running);
+%% A data byte (high bit clear) with a running status to apply: the remembered
+%% status byte governs, and the data bytes start here.
+parse_event(<<First:8, _/binary>> = Bin, Running)
+  when First < 16#80, Running =/= undefined ->
+    read_data(Running, Bin, Running).
+
+%% Take the data bytes a status consumes (midi_codec:data_length/1) and decode.
+%% Status here is always a channel or system byte (F0/F7/FF are handled above),
+%% so data_length is never `variable`. Channel messages set running status;
+%% real-time messages leave it untouched; system-common clears it.
+-spec read_data(0..255, binary(), 0..255 | undefined) ->
+          {ok, message(), 0..255 | undefined, binary()}
+        | {error, midierrs:reason()}.
+read_data(Status, DataAndRest, OldRunning) ->
+    case midi_codec:data_length(Status) of
+        N when is_integer(N) ->
+            case DataAndRest of
+                <<Data:N/binary, Rest/binary>> ->
+                    case midi_codec:decode_message(Status, Data) of
+                        {ok, Message} ->
+                            {ok, Message, next_running(Status, OldRunning), Rest};
+                        {error, _} = Error ->
+                            Error
+                    end;
+                _ ->
+                    error({truncated_event, Status, DataAndRest})
+            end;
+        variable ->
+            %% Unreachable: F0/F7 are framed before this is called.
+            error({unexpected_variable_length, Status})
+    end.
+
+%% Running-status transition. Channel status (0x80-0xEF) becomes the new running
+%% status; system real-time (0xF8-0xFF) is transparent to it; everything else
+%% (system-common) clears it.
+-spec next_running(0..255, 0..255 | undefined) -> 0..255 | undefined.
+next_running(Status, _Old) when Status >= 16#80, Status =< 16#EF -> Status;
+next_running(Status, Old)   when Status >= 16#F8                 -> Old;
+next_running(_Status, _Old)                                      -> undefined.
+
+%% Decode a VLQ-framed SysEx payload (shared by the F0 and F7 forms). The
+%% trailing F7 terminator, when present, is stripped into #sysex.data.
+-spec parse_sysex(binary()) ->
+          {ok, #sysex{}, undefined, binary()} | {error, midierrs:reason()}.
+parse_sysex(Bin) ->
+    case read_vlq(Bin) of
+        {ok, Len, Rest} ->
+            case Rest of
+                <<Payload:Len/binary, Rest2/binary>> ->
+                    {ok, #sysex{data = strip_eox(Payload)}, undefined, Rest2};
+                _ ->
+                    error({truncated_sysex, Bin})
+            end;
+        {error, _} = Error ->
+            Error
+    end.
+
+-spec strip_eox(binary()) -> binary().
+strip_eox(<<>>) ->
+    <<>>;
+strip_eox(Payload) ->
+    Size = byte_size(Payload),
+    case binary:at(Payload, Size - 1) of
+        ?STATUS_EOX -> binary:part(Payload, 0, Size - 1);
+        _           -> Payload
+    end.
+
+%% Variable-length quantity reader: 1-4 bytes, 7 value bits each, high bit =
+%% continuation. A 4-byte sequence whose 4th byte still sets the continuation
+%% bit is malformed (S7) — {error, {bad_vlq, Bytes}}, never a silent value;
+%% running out of bytes mid-quantity is the same error.
+-spec read_vlq(binary()) -> {ok, non_neg_integer(), binary()} | {error, midierrs:reason()}.
+read_vlq(Bin) ->
+    read_vlq(Bin, 0, 0, Bin).
+
+read_vlq(<<0:1, B:7, Rest/binary>>, Acc, _N, _Orig) ->
+    {ok, (Acc bsl 7) bor B, Rest};
+read_vlq(<<1:1, B:7, Rest/binary>>, Acc, N, Orig) when N < 3 ->
+    read_vlq(Rest, (Acc bsl 7) bor B, N + 1, Orig);
+read_vlq(<<1:1, _B:7, _Rest/binary>>, _Acc, 3, Orig) ->
+    {error, {bad_vlq, vlq_prefix(Orig)}};
+read_vlq(_Bin, _Acc, _N, Orig) ->
+    {error, {bad_vlq, vlq_prefix(Orig)}}.
+
+%% The (up to 4) leading bytes that form the offending VLQ, for the error term.
+-spec vlq_prefix(binary()) -> binary().
+vlq_prefix(Bin) ->
+    binary:part(Bin, 0, min(4, byte_size(Bin))).
+
+%%% ===========================================================================
+%%% WRITE — slice B
+%%% ===========================================================================
+%% The writer is rebuilt in slice B against the canonical vocabulary (via
+%% midi_codec:encode_message/1 + encode_meta/1). The 2010-vintage process-dict
+%% writer is intentionally removed rather than carried as dead legacy code: it
+%% would not compile against #seq{} and reintroduces the put/get state and the
+%% legacy event tuples this arc deletes.
+-spec write(#seq{}, file:name_all()) -> ok | {error, midierrs:reason()}.
+write(#seq{}, _Path) ->
+    {error, not_implemented}.
