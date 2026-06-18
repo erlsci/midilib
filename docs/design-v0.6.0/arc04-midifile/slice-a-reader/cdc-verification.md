@@ -98,10 +98,16 @@ slice.
   old `look_for_chunk` skipped them by scanning for the cookie; the rewrite does
   not, so a spec-legal file with an alien chunk now fails where it previously read.
   This is distinct from crashing on genuinely malformed bytes (which R4 sanctions).
-  *Disposition:* not a slice-A blocker (no audit finding named it; such files are
-  rare; the let-it-crash stance is reasonable as a default). **Tracked**, not
-  waved: recommend a chunk-skip pass when the writer/round-trip lands (slice C) or
-  an Arc-6 robustness item. No silent drop.
+  *Disposition:* **CLOSED** by follow-up commit `5065484`. `parse_tracks/3` now
+  has a chunk-skip clause (after the `MTrk` clause, FP-12) that skips any non-`MTrk`
+  chunk by its declared length without decrementing the track count (`ntrks`
+  counts `MTrk` only). Re-verified independently: the one-clause diff and its four
+  inline fixtures (`alien_chunk_before_first_track_test`,
+  `alien_chunk_between_tracks_test`, `alien_chunk_trailing_ignored_test`,
+  `truncated_chunk_still_crashes_test`) were read; the skip is correct and the
+  truncated-chunk case correctly **still crashes** (`?assertError`). The fix touched
+  only `src/midifile.erl` + `test/midifile_tests.erl`; `midi_codec`/`midibin`/
+  headers/`midierrs` untouched (`git show --stat 5065484` confirms).
 
 - **N-CDC-1 — encode-side error stance is inconsistent (forward note for slice B,
   not a slice-A defect).** `midi_codec:encode_meta/1` returns a structured
@@ -137,11 +143,24 @@ single new finding (F-CDC-1) is isolated, not a trend.
 
 ## 7. Closure
 
-- **Ledger:** all 20 CC rows verified; CDC column marked accordingly (rows 3/19/20
-  noted as execution-by-CC).
-- **Findings open & tracked (no silent drops):** F-CDC-1 (alien-chunk skip → slice
-  C or Arc-6), N-CDC-1 (encode error stance → slice B). P-1/P-2/P-3 are
-  process/housekeeping.
+- **Ledger:** all 21 rows verified (row 21 added by the follow-up); CDC column
+  marked accordingly (rows 3/19/20 noted as execution-by-CC).
+- **Findings:** **F-CDC-1 CLOSED** (follow-up commit `5065484`, re-verified — §4).
+  **N-CDC-1 open**, carried to slice B (encode error stance). P-1/P-2/P-3 are
+  process/housekeeping (P-1 superseded: all slice-A work is committed through
+  `5065484`).
+- **Follow-up nuance check (asked by the maintainer):** the follow-up did **not**
+  over-apply let-it-crash. The two cases CC kept as crashes — a chunk whose
+  declared length overruns the buffer, and a header declaring more `MTrk` chunks
+  than exist — are *genuinely malformed* (no spec sanctions them), which is the
+  correct side of the spec-legal/malformed line that F-CDC-1 was about. A separate,
+  legitimate *contract* question remains for the maintainer (not a CC defect):
+  whether file-level corruption (truncation, over-declared `ntrks`, zero division)
+  should be promoted from a crash to a structured `{error, _}` value, since for a
+  file reader these are foreseeable I/O corruption rather than programmer bugs.
+  The current contract (R4: malformed binary may crash) is followed faithfully; the
+  promotion is a deliberate choice to make or decline, best decided alongside the
+  writer's error stance (N-CDC-1) in slice B.
 - **Recommendation:** Slice A is **closed**. Proceed to author slice B (writer)
-  cc-prompt + ledger; fold F-CDC-1 and N-CDC-1 into its scope (or explicitly defer
-  with rationale).
+  cc-prompt + ledger; fold N-CDC-1 and the corruption-as-value contract question
+  into its scope (or explicitly defer with rationale).
